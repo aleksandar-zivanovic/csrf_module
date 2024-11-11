@@ -6,7 +6,7 @@ class Database
     protected $dbh;
     
     public function __construct(
-        protected string $user = "DB_USER", 
+        protected string $user = DB_USER, 
         protected ?string $password = DB_PASS, 
         protected string $host = DB_HOST, 
         protected string $dbName = DB_NAME
