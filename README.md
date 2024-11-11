@@ -38,7 +38,12 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
     );
 
     ```
-3. Configuration: Adjust settings in `csrf_config.php` as needed. The `SAVE_CSRF_STATUS` option determines if token status is stored in the database (`true` for saving, `false` for not saving).
+3. Configuration: Rename the file `config/csrf_config.example.php` to `config/csrf_config.php`. Adjust settings in `csrf_config.php` as needed. The `SAVE_CSRF_STATUS` option determines if token status is stored in the database (`true` for saving, `false` for not saving).
+
+4. Database Setup: Open `config/csrf_config.php` and configure your database settings. Update the `DB_USER`, `DB_PASS`, `DB_HOST`, and `DB_NAME` constants with your database credentials.
+
+
+5. Error Logging: The `Database` class includes an error logging function that will capture connection errors and log them into the `logs/errors.log` file. Make sure the `logs` folder exists, or the class will create it automatically
 
 ## Usage
 ### Generating CSRF Token

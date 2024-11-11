@@ -1,0 +1,2 @@
+config/csrf_config.php
+logs/errors.log
