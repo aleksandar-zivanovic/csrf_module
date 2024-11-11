@@ -46,15 +46,6 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 5. Error Logging: The `Database` class includes an error logging function that will capture connection errors and log them into the `logs/errors.log` file. Make sure the `logs` folder exists, or the class will create it automatically
 
 ## Usage
-### Generating CSRF Token
-You can generate a CSRF token with the following function:
-```
-function generateCsrfToken() {
-    $token = bin2hex(random_bytes(32));  // Generate a random token
-    $_SESSION['csrf_token'] = $token;   // Store token in session
-    return $token;
-}
-```
 
 ### Validating CSRF Token
 To validate a token submitted via a form, compare the token in the session with the one sent with the request:
