@@ -47,7 +47,15 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 
 ## Usage
 
-### Validating CSRF Token
+- ### Session Requirements for User ID
+
+The module requires a valid session key for the current user’s ID. The default session key is set to `'user_id'` but can be customized in `config/csrf_config.php`. If this session key is missing or invalid, the module will stop execution and display an error.
+
+Make sure to:
+    Set the `USER_ID_SESSION_KEY` constant in `csrf_config.php` to match your application's session key.
+    Ensure the session key is properly set and contains a valid integer representing the user ID.
+
+- ### Validating CSRF Token
 To validate a token submitted via a form, compare the token in the session with the one sent with the request:
 ```
 if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
