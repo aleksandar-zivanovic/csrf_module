@@ -55,4 +55,65 @@ class CSRF
         
         $this->userId = htmlspecialchars(trim($_SESSION[USER_ID_SESSION_KEY]));
     }
+
+    /**
+     * Function checks if the token is valid for use. It checks if: 
+     * - token from session is in valid format, 
+     * - token from session exists in database, 
+     * - token in database has status 'valid', 
+     * - token token is expired.
+     * Funtion returns true if the token is valid and false if is invalid
+     */
+    public function tokenValidation(): bool
+    {
+        // get value of the token from session
+        $this->csrfToken = $this->gettingTokenFromSession();
+
+        // check if a token is set in session
+        if (empty($this->csrfToken)) {
+            return false;
+        }
+
+        // check if a token exists in the database
+        $db = $this->getDb();
+        $query = "SELECT * from csrf_tokens where token = :tk";
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(':tk', $this->csrfToken, PDO::PARAM_STR);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$result) { 
+            return false;
+        }
+
+        // check token status is valid (this is only if saving status is turned on)
+        if (SAVE_CSRF_STATUS === true) {
+            if ($result['status'] !== 'valid') { return false; }
+        }
+        
+        // Check if token is timed out
+        if ($this->isTokenTimedOut($result['timestamp'])) { return false; }
+
+        // token is valid, so true is returned
+        return true;
+    }
+
+    /**
+     * Getting token from session. if there is token in session, 
+     * function returns string, else returns null
+     */
+    public function gettingTokenFromSession(): ?string
+    {
+        if (isset($_SESSION['csrf_token']) && !empty($_SESSION['csrf_token'])) {
+            $token = $_SESSION['csrf_token'];
+            return preg_match('/^[a-f0-9]{64}$/', $token) ? $token : null;
+        } else {
+            return null;
+        }
+    }
+
+    // Check if the token is timed out. Returns true if expired and false if not.
+    private function isTokenTimedOut(int $timestamp): bool 
+    {
+        return $timestamp + TOKEN_EXPIRATION_TIME <= time();
+    }
 }

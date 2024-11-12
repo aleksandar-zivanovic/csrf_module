@@ -17,3 +17,9 @@ const DB_NAME = 'value';                 // database name
  * Default is $_SESSION['user_id'], but can be customized as needed.
  */
 const USER_ID_SESSION_KEY = 'user_id';
+
+/**
+ * Set time expiration period.
+ * Time is calculated in seconds.
+ */
+const TOKEN_EXPIRATION_TIME = 3600;
