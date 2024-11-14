@@ -15,7 +15,7 @@ class CSRF
     }
 
     // Generates CSRF token and adds data to the database
-    public function generateCsrfToken(): void  
+    public function generateAndSaveCsrfToken(): void  
     {
         $this->csrfToken = bin2hex(random_bytes(32));
         $_SESSION['csrf_token'] = $this->csrfToken;
@@ -41,7 +41,7 @@ class CSRF
         $stmt->execute();
         $result = $stmt->rowCount() >= 1 ? 'success' : 'fail';
         if ($result == 'fail') {
-            $db->errorLog("generateCsrfToken() method error: execution() failed");
+            $db->errorLog("generateAndSaveCsrfToken() method error: execution() failed");
         }
 
     }
