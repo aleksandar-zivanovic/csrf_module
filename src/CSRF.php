@@ -7,24 +7,28 @@ class CSRF
     public int $timestamp;
     public int $userId;
 
-    // connecting to the database
+    // Connects to the database
     protected function getDb(): object
     {
         $db = new Database();
         return $db->getDbh();
     }
 
-    // generating CSRF token and adding data to the database
+    // Generates CSRF token and adds data to the database
     public function generateCsrfToken(): void  
     {
         $this->csrfToken = bin2hex(random_bytes(32));
         $_SESSION['csrf_token'] = $this->csrfToken;
 
-        // setting timestamp value
+        // Sets timestamp value
         $this->timestamp = time();
 
-        // setting $this->userId value from session 
-        $this->getUserId();
+        // Sets $this->userId value from session 
+        $this->userId = $this->getUserIdFromSession();
+        if ($this->userId == 0) {
+            echo "Error: User ID session key is missing or invalid.";
+            die();
+        }
 
         $db = $this->getDb();
 
@@ -46,14 +50,13 @@ class CSRF
      * Getting user's ID from session and setting userId property 
      * if the session value exists and is integer type
      */
-    public function getUserId(): void
+    public function getUserIdFromSession(): int
     {
         if (!isset($_SESSION[USER_ID_SESSION_KEY]) || !is_int($_SESSION[USER_ID_SESSION_KEY])) {
-            echo "Error: User ID session key is missing or invalid.";
-            die();
+            return 0;
         }
         
-        $this->userId = htmlspecialchars(trim($_SESSION[USER_ID_SESSION_KEY]));
+        return htmlspecialchars(trim($_SESSION[USER_ID_SESSION_KEY]));
     }
 
     /**
@@ -66,39 +69,37 @@ class CSRF
      */
     public function tokenValidation(): bool
     {
-        // get value of the token from session
-        $this->csrfToken = $this->gettingTokenFromSession();
+        // Gets value of the token from session. 
+        // gettingTokenFromSession() returns null if the token isn't set in session or is in a wrong format 
+        $tokenFromSession = $this->gettingTokenFromSession();
+        if ($tokenFromSession == null) return false;
+        $this->csrfToken = $tokenFromSession;
 
-        // check if a token is set in session
-        if (empty($this->csrfToken)) {
-            return false;
-        }
+        // Checks if a token is set in session
+        if (empty($this->csrfToken)) return false;
+        
+        // Checks if a token exists in the database
+        $tokenFromDb = $this->getTokenData();
+        if ($tokenFromDb === false) return false;
 
-        // check if a token exists in the database
-        $db = $this->getDb();
-        $query = "SELECT * from csrf_tokens where token = :tk";
-        $stmt = $db->prepare($query);
-        $stmt->bindValue(':tk', $this->csrfToken, PDO::PARAM_STR);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$result) { 
-            return false;
-        }
+        // Compare user's ID from session and from the database
+        $this->userId = $this->getUserIdFromSession();
+        if ($this->userId != $tokenFromDb['user_id']) return false;
 
-        // check token status is valid (this is only if saving status is turned on)
+        // Checks token status is valid (this is only if saving status is turned on)
         if (SAVE_CSRF_STATUS === true) {
-            if ($result['status'] !== 'valid') { return false; }
+            if ($tokenFromDb['status'] !== 'valid') return false;
         }
         
         // Check if token is timed out
-        if ($this->isTokenTimedOut($result['timestamp'])) { return false; }
+        if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) return false;
 
-        // token is valid, so true is returned
+        // Token is valid, so true is returned
         return true;
     }
 
     /**
-     * Getting token from session. if there is token in session, 
+     * Gets token from session. If there is token in session, 
      * function returns string, else returns null
      */
     public function gettingTokenFromSession(): ?string
@@ -111,9 +112,24 @@ class CSRF
         }
     }
 
-    // Check if the token is timed out. Returns true if expired and false if not.
+    // Checks if the token is timed out. Returns true if expired and false if not.
     private function isTokenTimedOut(int $timestamp): bool 
     {
         return $timestamp + TOKEN_EXPIRATION_TIME <= time();
+    }
+
+    /**
+     * Retrives token data from database.
+     * Returns an associative array if the token exists or false if it doesn't.
+     */
+    public function getTokenData(): array|false
+    {  
+        $db = $this->getDb();
+        $query = "SELECT * from csrf_tokens where token = :tk";
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(':tk', $this->csrfToken, PDO::PARAM_STR);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ?: false ;
     }
 }
