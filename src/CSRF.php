@@ -92,7 +92,14 @@ class CSRF
         }
         
         // Check if token is timed out
-        if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) return false;
+        if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) 
+        {
+            if ($this->changeTokenStatus($tokenFromDb['token'], 'expired') === false) {
+                echo "The token is expired and changing its status failed. Genearte new token";
+                die();
+            };
+            return false;
+        }
 
         // Token is valid, so true is returned
         return true;
@@ -131,5 +138,21 @@ class CSRF
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result ?: false ;
+    }
+
+    // Changes token status
+    public function changeTokenStatus(string $token, string $status): bool 
+    {
+        $db = $this->getDb();
+        $query = "UPDATE csrf_tokens SET status = :st WHERE token = :tk";
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(":st", $status, PDO::PARAM_STR);
+        $stmt->bindValue(":tk", $token, PDO::PARAM_STR);
+        if (!$stmt->execute() || $stmt->rowCount() == 0) { 
+            $db->errorLog("changeTokenStatus() method error: execution() failed");
+            return false;
+        } else {
+            return true;
+        }
     }
 }
