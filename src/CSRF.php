@@ -6,12 +6,16 @@ class CSRF
     public string $csrfToken;
     public int $timestamp;
     public int $userId;
+    private ?Database $dbInstance = null;
 
     // Connects to the database
-    protected function getDb(): object
+    private function getDb(): object
     {
-        $db = new Database();
-        return $db->getDbh();
+        if ($this->dbInstance === null) {
+            $this->dbInstance = new Database();
+        }
+
+        return $this->dbInstance;
     }
 
     // Generates CSRF token and adds data to the database
@@ -30,7 +34,7 @@ class CSRF
             die();
         }
 
-        $db = $this->getDb();
+        $db = $this->getDb()->getDbh();
 
         $query = "INSERT INTO csrf_tokens (token, timestamp, status, user_id) VALUES (:tk, :ts, :st, :ui)";
         $stmt =  $db->prepare($query);
@@ -41,7 +45,7 @@ class CSRF
         $stmt->execute();
         $result = $stmt->rowCount() >= 1 ? 'success' : 'fail';
         if ($result == 'fail') {
-            $db->errorLog("generateAndSaveCsrfToken() method error: execution() failed");
+            $this->getDb()->errorLog("generateAndSaveCsrfToken() method error: execution() failed");
         }
 
     }
@@ -131,7 +135,7 @@ class CSRF
      */
     public function getTokenData(): array|false
     {  
-        $db = $this->getDb();
+        $db = $this->getDb()->getDbh();
         $query = "SELECT * from csrf_tokens where token = :tk";
         $stmt = $db->prepare($query);
         $stmt->bindValue(':tk', $this->csrfToken, PDO::PARAM_STR);
@@ -143,13 +147,13 @@ class CSRF
     // Changes token status
     public function changeTokenStatus(string $token, string $status): bool 
     {
-        $db = $this->getDb();
+        $db = $this->getDb()->getDbh();
         $query = "UPDATE csrf_tokens SET status = :st WHERE token = :tk";
         $stmt = $db->prepare($query);
         $stmt->bindValue(":st", $status, PDO::PARAM_STR);
         $stmt->bindValue(":tk", $token, PDO::PARAM_STR);
         if (!$stmt->execute() || $stmt->rowCount() == 0) { 
-            $db->errorLog("changeTokenStatus() method error: execution() failed");
+            $this->getDb()->errorLog("changeTokenStatus() method error: execution() failed");
             return false;
         } else {
             return true;
