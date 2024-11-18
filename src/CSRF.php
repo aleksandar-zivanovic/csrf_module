@@ -6,16 +6,20 @@ class CSRF
     public string $csrfToken;
     public int $timestamp;
     public int $userId;
+    private ?Database $dbInstance = null;
 
     // Connects to the database
-    protected function getDb(): object
+    private function getDb(): object
     {
-        $db = new Database();
-        return $db->getDbh();
+        if ($this->dbInstance === null) {
+            $this->dbInstance = new Database();
+        }
+
+        return $this->dbInstance->getDbh();
     }
 
     // Generates CSRF token and adds data to the database
-    public function generateCsrfToken(): void  
+    public function generateAndSaveCsrfToken(): void  
     {
         $this->csrfToken = bin2hex(random_bytes(32));
         $_SESSION['csrf_token'] = $this->csrfToken;
@@ -41,7 +45,7 @@ class CSRF
         $stmt->execute();
         $result = $stmt->rowCount() >= 1 ? 'success' : 'fail';
         if ($result == 'fail') {
-            $db->errorLog("generateCsrfToken() method error: execution() failed");
+            $db->errorLog("generateAndSaveCsrfToken() method error: execution() failed");
         }
 
     }
@@ -92,7 +96,20 @@ class CSRF
         }
         
         // Check if token is timed out
-        if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) return false;
+        if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) {
+            if (SAVE_CSRF_STATUS === true) {
+                if ($this->changeTokenStatus($tokenFromDb['token'], 'expired') === false) {
+                    echo "The token is expired and changing its status failed. Genearte new token";
+                    die();
+                };
+                return false;
+            }
+
+            if (SAVE_CSRF_STATUS === false) {
+                $this->deleteToken('id', $tokenFromDb['id']);
+                return false;
+            }
+        }
 
         // Token is valid, so true is returned
         return true;
@@ -131,5 +148,35 @@ class CSRF
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result ?: false ;
+    }
+
+    // Changes token status
+    public function changeTokenStatus(string $token, string $status): bool 
+    {
+        $db = $this->getDb();
+        $query = "UPDATE csrf_tokens SET status = :st WHERE token = :tk";
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(":st", $status, PDO::PARAM_STR);
+        $stmt->bindValue(":tk", $token, PDO::PARAM_STR);
+        if (!$stmt->execute() || $stmt->rowCount() == 0) { 
+            $db->errorLog("changeTokenStatus() method error: execution() failed");
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    // Delete token by column name and value
+    public function deleteToken(string $column, string|int $value): bool 
+    {
+        $db = $this->getDb();
+        $query = "DELETE FROM csrf_tokens WHERE {$column} = $value";
+        $stmt = $db->prepare($query);
+        if (!$stmt->execute() || $stmt->rowCount() < 1) {
+            $this->dbInstance->errorLog("deleteToken() method error: execution() failed or rowCount() < 1");
+            return false;
+        } else {
+            return true;
+        }
     }
 }
