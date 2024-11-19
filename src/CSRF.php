@@ -96,13 +96,19 @@ class CSRF
         }
         
         // Check if token is timed out
-        if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) 
-        {
-            if ($this->changeTokenStatus($tokenFromDb['token'], 'expired') === false) {
-                echo "The token is expired and changing its status failed. Genearte new token";
-                die();
-            };
-            return false;
+        if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) {
+            if (SAVE_CSRF_STATUS === true) {
+                if ($this->changeTokenStatus($tokenFromDb['token'], 'expired') === false) {
+                    echo "The token is expired and changing its status failed. Genearte new token";
+                    die();
+                };
+                return false;
+            }
+
+            if (SAVE_CSRF_STATUS === false) {
+                $this->deleteToken('id', $tokenFromDb['id']);
+                return false;
+            }
         }
 
         // Token is valid, so true is returned
@@ -148,12 +154,27 @@ class CSRF
     public function changeTokenStatus(string $token, string $status): bool 
     {
         $db = $this->getDb()->getDbh();
+
         $query = "UPDATE csrf_tokens SET status = :st WHERE token = :tk";
         $stmt = $db->prepare($query);
         $stmt->bindValue(":st", $status, PDO::PARAM_STR);
         $stmt->bindValue(":tk", $token, PDO::PARAM_STR);
         if (!$stmt->execute() || $stmt->rowCount() == 0) { 
             $this->getDb()->errorLog("changeTokenStatus() method error: execution() failed");
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    // Delete token by column name and value
+    public function deleteToken(string $column, string|int $value): bool 
+    {
+        $db = $this->getDb();
+        $query = "DELETE FROM csrf_tokens WHERE {$column} = $value";
+        $stmt = $db->prepare($query);
+        if (!$stmt->execute() || $stmt->rowCount() < 1) {
+            $this->dbInstance->errorLog("deleteToken() method error: execution() failed or rowCount() < 1");
             return false;
         } else {
             return true;
