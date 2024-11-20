@@ -98,7 +98,7 @@ class CSRF
         // Check if token is timed out
         if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) {
             if (SAVE_CSRF_STATUS === true) {
-                if ($this->changeTokenStatus($tokenFromDb['token'], 'expired') === false) {
+                if ($this->changeTokenStatus($tokenFromDb['id'], 'expired') === false) {
                     echo "The token is expired and changing its status failed. Genearte new token";
                     die();
                 };
@@ -151,14 +151,23 @@ class CSRF
     }
 
     // Changes token status
-    public function changeTokenStatus(string $token, string $status): bool 
+    public function changeTokenStatus(string|array $id, string $status): bool 
     {
         $db = $this->getDb()->getDbh();
+        $query = "UPDATE csrf_tokens SET status = :st WHERE ";
 
-        $query = "UPDATE csrf_tokens SET status = :st WHERE token = :tk";
+        if (is_array($id)) {
+            $stringOfIds = implode(", ", $id);
+            $query .= " id IN (" . $stringOfIds . ")";
+        }
+
+        if (is_string($id)) {
+            $query .= " id = :id";
+        }
+        
         $stmt = $db->prepare($query);
         $stmt->bindValue(":st", $status, PDO::PARAM_STR);
-        $stmt->bindValue(":tk", $token, PDO::PARAM_STR);
+        if (is_string($id)) $stmt->bindValue(":id", $id, PDO::PARAM_STR);
         if (!$stmt->execute() || $stmt->rowCount() == 0) { 
             $this->getDb()->errorLog("changeTokenStatus() method error: execution() failed");
             return false;
@@ -167,17 +176,140 @@ class CSRF
         }
     }
 
-    // Delete token by column name and value
-    public function deleteToken(string $column, string|int $value): bool 
+    // Delete token or tokens by column name and value
+    public function deleteToken(string $column, string|int|array $value): bool 
     {
         $db = $this->getDb();
-        $query = "DELETE FROM csrf_tokens WHERE {$column} = $value";
-        $stmt = $db->prepare($query);
+        $query = "DELETE FROM csrf_tokens WHERE {$column} ";
+
+        if (is_array($value)) {
+            $stringOfValues = implode(", ", $value);
+            $query .= "IN ($stringOfValues)";
+        }
+
+        if (is_string($value) || is_int($value)) {
+            $query .= "= " . $value;
+        }
+
+        $stmt = $db->getDbh()->prepare($query);
         if (!$stmt->execute() || $stmt->rowCount() < 1) {
             $this->dbInstance->errorLog("deleteToken() method error: execution() failed or rowCount() < 1");
             return false;
         } else {
             return true;
         }
+    }
+
+    /**
+     * Deletes all expired tokens by ID values provided in array
+     */
+    public function deleteAllTokensByIdArray(array $ids): bool
+    {
+        return $this->deleteToken('id', $ids) ? true : false;
+    }
+
+    /**
+     * Cleans up time-outed CSRF tokens based on timestamp, status, or both.
+     * 
+     * This method allows you to delete time outed tokens or update their status. 
+     * It handles:
+     * - Deleting tokens that have time outed based on their timestamp if the configuration 
+     *   `SAVE_CSRF_STATUS` is set to false.
+     * - Changing the status of time outed tokens from 'valid' to 'expired' if the configuration 
+     *   `SAVE_CSRF_STATUS` is set to true.
+     * 
+     * @param bool $timestamp If set to true, tokens will be filtered based on their expiration time (calculated as current time - TOKEN_EXPIRATION_TIME constant).
+     * @param string|array|null $status If provided, only tokens with the specified status will be processed.
+     * @param int|null $userId If provided, tokens belonging to the specified user will be processed.
+     * 
+     * @return bool Returns true if any token was processed (deleted or updated), false if no tokens were found.
+     * 
+     */
+    public function allTokensCleanUp(
+        bool $timestamp = false, 
+        string|array|null $status = null, 
+        ?int $userId = null
+        ): bool 
+    {
+        // Checks if the user has administrative privileges. Access is denied for non-admin users.
+        // If an unauthorized access attempt is detected, an error is logged, and the method is terminated with an appropriate message.
+        if (!isset($_SESSION[ROLE_NAME]) || $_SESSION[ROLE_NAME] != ROLE_VALUE) {
+            $this->getDb()->errorLog("allTokensCleanUp metod error: Unauthorized access attempt.");
+            die('You do not have the required permissions.');
+        }
+
+        // Provides only 'valid' status may be changed
+        if (SAVE_CSRF_STATUS === true) {
+            $status = 'valid';
+        }
+
+        $db = $this->getDb();
+        $query = "SELECT * FROM csrf_tokens WHERE ";
+
+        $bindStatus = $bindTimestamp = $bindUser = null;
+
+        // Deletes by timestamp query set up
+        // Returns rows with expired timestamps
+        if ($timestamp != false) {
+            $timeLimit = time() - TOKEN_EXPIRATION_TIME;
+            $query .= "timestamp <= :tl";
+            if ($status != null) {
+                $query .= " AND ";
+            }
+            $bindTimestamp = true;
+        }
+        
+        // Deletes by status query set up
+        if ($status != null) {
+            $query .= "status = :st";
+            $bindStatus = true;
+        }
+
+        // Deletes by user's id query set up
+        if (is_int($userId) && $userId >= 1) {
+            if ($timestamp == false && $status == null) {
+                $query .= "user_id = :ui";
+                $bindUser = true;
+            } else {
+                die ("Invalid method call!");
+            }
+        }
+        
+        $stmt = $db->getDbh()->prepare($query);
+
+        // Binds values
+        if ($bindTimestamp === true) $stmt->bindValue(":tl", $timeLimit, PDO::PARAM_INT);
+        if ($bindStatus === true) $stmt->bindValue(":st", $status, PDO::PARAM_STR);
+        if ($bindUser === true) $stmt->bindValue(":ui", $userId, PDO::PARAM_INT);
+
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Returns false if there are no expired tokens
+        if (empty($result)) {
+            return false;
+        };
+
+        // Gets ID's of timed out tokens
+        $expiredTokens = [];
+        foreach ($result as $token) {
+            $expiredTokens[] = $token['id'];
+        }
+
+        // Deletes all time outed tokens
+        if (SAVE_CSRF_STATUS === false) {
+            $this->deleteAllTokensByIdArray($expiredTokens);
+            return true;
+        }
+        
+        // Changes status to 'expired' to all time outed tokens with current status 'valid'
+        if (SAVE_CSRF_STATUS === true) {
+            $this->changeTokenStatus($expiredTokens, 'expired');
+            return true;
+        }
+        
+        // Something unpredicted happened
+        $this->dbInstance->errorLog("allTokensCleanUp() method <strong>error:</strong> something unpredicted happened!");
+        return false;
     }
 }

@@ -23,3 +23,10 @@ const USER_ID_SESSION_KEY = 'user_id';
  * Time is calculated in seconds.
  */
 const TOKEN_EXPIRATION_TIME = 3600;
+
+/**
+ * Session key and value used to determine admin access.
+ * Example: $_SESSION['role'] should have value 'admin' to grant access.
+ */
+const ROLE_NAME  = 'role';  // Session key for user role
+const ROLE_VALUE = 'admin'; // Required role value for admin access

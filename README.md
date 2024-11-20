@@ -2,11 +2,15 @@
 
 ## Description
 This module provides functionality to generate and validate CSRF tokens. It ensures protection against CSRF attacks by verifying that requests originate from trusted sources.
+<br> 
+<br> 
 
 ## Features
 - Token generation and validation.
 - Custom expiration time for tokens.
 - Optional storage of token status (valid, used, expired).
+<br> 
+<br> 
 
 ## Installation
 1. Download the module and place it in your project’s modules directory
@@ -44,6 +48,8 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 
 
 5. Error Logging: The `Database` class includes an error logging function that will capture connection errors and log them into the `logs/errors.log` file. Make sure the `logs` folder exists, or the class will create it automatically
+<br> 
+<br> 
 
 ## Usage
 
@@ -62,9 +68,49 @@ if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
     // Handle CSRF attack
 }
 ```
+<br> 
+<br> 
+
+## Cleaning Expired CSRF Tokens
+
+The module includes functionality for cleaning expired CSRF tokens from the database. Tokens are considered expired if their timestamp exceeds a specified expiration time. This cleanup process can be automated by calling the `allTokensCleanUp` method, which will remove expired tokens based on the configured expiration time.
+
+The expiration time is defined in the `csrf_config.php` file via the `TOKEN_EXPIRATION_TIME` constant, and expired tokens are removed by running the cleanup method periodically, either manually or using a cron job.
+
+You can call this cleanup method in your application as follows:
+```
+$csrf = new CSRF(); // Assuming CSRF class is used
+$csrf->allTokensCleanUp();
+```
+<br> 
+<br> 
+
+## Admin Access for Token Cleanup
+The `allTokensCleanUp` method is restricted to users with administrator privileges. This restriction is enforced using session data, and the role configuration is defined in the `csrf_config.php` file through the following constants:
+```
+const ROLE_NAME = 'role'; // Session key for user role
+const ROLE_VALUE = 'admin'; // Role value required for access
+```
+When the method is called, it verifies the session data to ensure the user has the required role. If the validation fails, the method:
+
+1. Logs an error indicating unauthorized access.
+2. Returns a message to the user indicating insufficient permissions.
+
+Ensure that:
+- The ROLE_NAME constant matches the session key used in your application for user roles.
+- The ROLE_VALUE constant matches the role value assigned to administrators.
+
+Example of session configuration in your application:
+```
+$_SESSION['role'] = 'admin'; // Assign 'admin' role to an authorized user
+```
+<br> 
+<br> 
 
 ## Configuration
 You can configure various aspects of the CSRF module by editing the configuration file located in `modules/csrf_module/config/csrf_config.php`.
+<br> 
+<br> 
 
 ## License
 
