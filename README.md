@@ -27,14 +27,23 @@ const INDEX_STATUS    = false; // set true to enable indexing on status column
 const INDEX_BOTH      = false; // set true to enable indexing timestamp and status columns
 ```
 
-To create the table in database call `createTable` method:
+- To create the table in database call `createTable` method:
 
 ```php
 $manager = new DatabaseSchemaManager();
 $manager->createTable();
 ```
 
-Result of calling `createTable` will be logged in `csrf_module\logs\errors.log` file.
+- To delete the table, you can call the `deleteTable` method:
+
+```php
+$manager = new DatabaseSchemaManager();
+$manager->deleteTable();
+```
+
+The result of calling either method will be logged in the `csrf_module\logs\errors.log` file.
+
+**Note**: Deleting the table is irreversible and should only be done if you are sure it is no longer needed.
 
 3. Configuration: Rename the file `config/csrf_config.example.php` to `config/csrf_config.php`.
 
