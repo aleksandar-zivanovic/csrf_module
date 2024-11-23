@@ -13,39 +13,32 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 <br> 
 
 ## Installation
+
 1. Download the module and place it in your project’s modules directory
-2. Database Setup 
+2. Database Setup. Code for creating the table will be handled by the `createTable` method inside `DatabaseSchemaManager` class. Table configuration is set in `config/csrf_config.php`.
 
-    Open phpMyAdmin or any MySQL client, and copy-paste the following code to create the required table for CSRF tokens.
+If the `SAVE_CSRF_STATUS` constant is set to `true`, the `status` column will be included. If set to `false`, the column will be omitted.
 
-    Code for enabled saving token status (with `status` column):
+For setting index on `timestamp` or `status` or both columns set `true` value for each index:
 
-    ```
-    CREATE TABLE csrf_tokens (
-        id INT AUTO_INCREMENT PRIMARY KEY, 
-        token VARCHAR(255) NOT NULL, 
-        timestamp INT NOT NULL, 
-        status ENUM('valid', 'used', 'expired') DEFAULT 'valid', 
-        user_id INT
-    );
+```php
+const INDEX_TIMESTAMP = false; // set true to enable indexing on timestamp column
+const INDEX_STATUS    = false; // set true to enable indexing on status column
+const INDEX_BOTH      = false; // set true to enable indexing timestamp and status columns
+```
 
-    ```
+To create the table in database call `createTable` method:
 
-    Code for disabled saving token status (without `status` column):
+```php
+$manager = new DatabaseSchemaManager();
+$manager->createTable();
+```
 
-    ```
-    CREATE TABLE csrf_tokens (
-        id INT AUTO_INCREMENT PRIMARY KEY, 
-        token VARCHAR(255) NOT NULL, 
-        timestamp INT NOT NULL, 
-        user_id INT
-    );
+Result of calling `createTable` will be logged in `csrf_module\logs\errors.log` file.
 
-    ```
-3. Configuration: Rename the file `config/csrf_config.example.php` to `config/csrf_config.php`. Adjust settings in `csrf_config.php` as needed. The `SAVE_CSRF_STATUS` option determines if token status is stored in the database (`true` for saving, `false` for not saving).
+3. Configuration: Rename the file `config/csrf_config.example.php` to `config/csrf_config.php`.
 
 4. Database Setup: Open `config/csrf_config.php` and configure your database settings. Update the `DB_USER`, `DB_PASS`, `DB_HOST`, and `DB_NAME` constants with your database credentials.
-
 
 5. Error Logging: The `Database` class includes an error logging function that will capture connection errors and log them into the `logs/errors.log` file. Make sure the `logs` folder exists, or the class will create it automatically
 <br> 
