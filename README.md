@@ -9,6 +9,7 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 - Token generation and validation.
 - Custom expiration time for tokens.
 - Optional storage of token status (valid, used, expired).
+- Index creation and removal for `status` and `timestamp` columns.
 <br> 
 <br> 
 
@@ -70,6 +71,26 @@ if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
     // Handle CSRF attack
 }
 ```
+
+- ### Creating and Removing Indexes for Columns
+
+- To create an index on specific columns (`status`, `timestamp`, or both), use the `addIndex` method:
+
+```php
+$csrf = new CSRF(); // Assuming CSRF class is used
+$csrf->addIndex('status'); // Creates index for the 'status' column
+$csrf->addIndex(['status', 'timestamp']); // Creates index for both 'status' and 'timestamp' columns
+```
+
+The method will log an error if the index already exists and return `false`. If the index is successfully created, it will return `true`.
+
+- To remove an index from specific columns (`status`, `timestamp`, or both), use the `removeIndex` method:
+
+```php
+$csrf = new CSRF(); // Assuming CSRF class is used
+$csrf->removeIndex('status'); // Removes index for the 'status' column
+$csrf->removeIndex(['status', 'timestamp']); // Removes index for both 'status' and 'timestamp' columns
+```
 <br> 
 <br> 
 
@@ -111,6 +132,16 @@ $_SESSION['role'] = 'admin'; // Assign 'admin' role to an authorized user
 
 ## Configuration
 You can configure various aspects of the CSRF module by editing the configuration file located in `modules/csrf_module/config/csrf_config.php`.
+
+- **Indexing Configuration**: Enable or disable indexing for the `status` and `timestamp` columns by setting the following constants in `csrf_config.php`:
+
+```php
+const INDEX_TIMESTAMP = false; // Set true to enable indexing on timestamp column
+const INDEX_STATUS    = false; // Set true to enable indexing on status column
+const INDEX_BOTH      = false; // Set true to enable indexing for both timestamp and status columns
+```
+
+- **Removing Indexes**: You can remove indexes for the `status` and `timestamp` columns by calling the `removeIndex` method with the appropriate column name(s). See the `Usage` section for more details.
 <br> 
 <br> 
 
