@@ -1,6 +1,23 @@
 <?php
 require_once __DIR__ . '/Database.php';
 
+/**
+ * All methods:
+ * 
+ * getDb(): object                                                - connects to Database
+ * generateAndSaveCsrfToken(): void                               - creates and saves token to Database
+ * getUserIdFromSession(): int                                    - gets user ID from session
+ * gettingTokenFromSession(): ?string                             - gets token from session
+ * tokenValidation(): bool                                        - validates token
+ * isTokenTimedOut(int $timestamp): bool                          - checks if token is time outed
+ * getTokensWithData(?array $conditions = null): array|null       - retrives token(s) with data by criteria
+ * changeTokenStatus(string|array $id, string $status): bool      - changes token status
+ * deleteToken(string $column, string|int|array $value): bool     - deletes a token by criteria
+ * deleteAllTokensByIdArray(array $ids): bool                     - deletes tokens by criteria
+ * allTokensCleanUp(bool $timestamp,string|array|null $status, ?int $userId) - cleans up tokens
+ * 
+ */
+
 class CSRF
 {
     public string $csrfToken;
@@ -83,8 +100,9 @@ class CSRF
         if (empty($this->csrfToken)) return false;
         
         // Checks if a token exists in the database
-        $tokenFromDb = $this->getTokenData();
-        if ($tokenFromDb === false) return false;
+        $conditions = [['column' => 'token', 'operator' => '=', 'value' => $this->csrfToken]];
+        $tokenFromDb = $this->getTokensWithData($conditions);
+        if ($tokenFromDb === null) return false;
 
         // Compare user's ID from session and from the database
         $this->userId = $this->getUserIdFromSession();
@@ -136,19 +154,91 @@ class CSRF
     }
 
     /**
-     * Retrives token data from database.
-     * Returns an associative array if the token exists or false if it doesn't.
+     * Fetches one or more tokens and their data based on the provided conditions.
+     * Throws an InvalidArgumentException if the conditions parameter is invalid.
+     * 
+     * @param array|null $conditions Default is null. 
+     * Each condition must be an associative array with the keys:
+     * - 'column' (string): The name of the column.
+     * - 'operator' (string): The comparison operator (allowed: '=', '<=', '>=', '<', '>').
+     * - 'value' (mixed): The value to compare against.
+     * 
+     * Example: 
+     * [
+     *  ['column' => 'status', 'operator' => '=', 'value' => 'valid'], 
+     *  ['column' => 'user_id', 'operator' => '>=', 'value' => 123]
+     * ]
+     * 
+     * 
+     * @return array|null Returns either a single token (associative array) or multiple tokens (multidimensional array). Null if no tokens are found.
+
      */
-    public function getTokenData(): array|false
-    {  
-        $db = $this->getDb()->getDbh();
-        $query = "SELECT * from csrf_tokens where token = :tk";
-        $stmt = $db->prepare($query);
-        $stmt->bindValue(':tk', $this->csrfToken, PDO::PARAM_STR);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $result ?: false ;
+    public function getTokensWithData(?array $conditions = null): array|null
+    {
+        // Throws exception if $conditions is an empty array
+        if ($conditions !== null && empty($conditions)) {
+            throw new InvalidArgumentException("Conditions must not be empty array");
+        }
+
+        $query = "SELECT * FROM csrf_tokens";
+
+        if ($conditions !== null) {
+            $allowedColumns = ['id', 'token', 'timestamp', 'user_id', 'status'];
+            $allowedOperators = ["=", "<=", ">=", "<", ">"];
+            $whereClause = [];
+            foreach ($conditions as $condition) {
+                // Checks if the column is not allowed
+                if (!in_array($condition['column'], $allowedColumns)) {
+                    throw new InvalidArgumentException("Column value in the array is not allowed");
+                }
+
+                // Checks if the operator is not allowed
+                if (!in_array($condition['operator'], $allowedOperators)) {
+                    throw new InvalidArgumentException("Operator value in the array is not allowed");
+                }
+
+                // Checks if value type is not allowed
+                if (!is_string($condition['value']) && !is_int($condition['value'])) {
+                    throw new InvalidArgumentException("Value of value in the array is not allowed type");
+                }
+
+                // Checks if $conditions['column'] or $conditions['value'] are null
+                if ($condition['column'] === null || $condition['value'] === null) {
+                    throw new InvalidArgumentException("Elements in array must not be null");
+                }
+
+                // Generates where clause
+                $whereClause[] = "{$condition['column']} {$condition['operator']} :{$condition['column']}";
+            }
+
+            $query .= " WHERE " . implode(" AND ", $whereClause);
+        }
+
+        $stmt = $this->getDb()->getDbh()->prepare($query);
+
+        // Binds values
+        if ($conditions !== null) {
+            foreach ($conditions as $condition) {
+                $pdoBind = in_array($condition['column'], ['token', 'status']) ? PDO::PARAM_STR : PDO::PARAM_INT;
+                $stmt->bindValue(":{$condition['column']}", $condition['value'], $pdoBind);
+            }
+        }
+
+        try {
+            $stmt->execute();
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("getTokensWithData error: SELECT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+        }
+
+        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (count($result) === 1) {
+            return $result[0];
+        }
+
+        return empty($result) ? null : $result;
     }
+
 
     // Changes token status
     public function changeTokenStatus(string|array $id, string $status): bool 
