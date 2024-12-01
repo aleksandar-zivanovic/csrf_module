@@ -1,6 +1,27 @@
 <?php
 require_once __DIR__ . '/Database.php';
 
+/**
+ * All methods:
+ * 
+ * getDb(): object                              - connects to Database
+ * closeConnection(): void                      - closes connection to Database
+ * closeAndReturn(bool $return)                 - closes connection to Database and returns $return
+ * createTable(): bool                          - creates csrf_tokens table in Database
+ * deleteTable(): bool                          - removes csrf_tokens table from Database
+ * checkIfTableExists(): bool                   - checks if csrf_tokens table exists
+ * doesColumnStatusExist():bool                 - checks if status column exists in csrf_tokens table
+ * addStatusColumn(): bool                      - creates status column to csrf_tokens table
+ * removeStatusColumn(): bool                   - removes status column from csrf_tokens table
+ * addIndex(string|array $column): bool         - creates index(es) on csrf_tokens table
+ * removeIndex(string|array $column): bool      - removes index(es) from csrf_tokens table
+ * findAllIndexes(): array                      - shows existing indexes for csrf_tokens table
+ * filterAllIndexes(): array                    - filters indexes and returns unique index names
+ * checkAllowedColumnsForIndex(string|array $column): bool   - checks if parameter for removeIndex is allowed
+ * isIndexOnColumn(string|array $column): bool  - checks if there is an index on a column
+ * 
+ */
+
 class DatabaseSchemaManager 
 {
     private ?Database $dbInstance = null;
@@ -128,6 +149,83 @@ class DatabaseSchemaManager
         $stmt->execute();
 
         return $stmt->rowCount() > 0 ? true : false;
+    }
+
+    /**
+     * Create status column to csrf_tokens table
+     * SAVE_CSRF_STATUS must be set to `true` in csrf_config.php
+     * Checks if the column exists and SAVE_CSRF_STATUS is set for saving status
+     * @return bool Returns true status column is added, otherwise false.
+     */
+    public function addStatusColumn(): bool 
+    {
+        if (SAVE_CSRF_STATUS === false) {
+            throw new Exception("SAVE_CSRF_STATUS is set to false.");
+        }
+
+        // Checks if the column already exists
+        if ($this->doesColumnStatusExist() === true) {
+            throw new Exception("`status` column already exists.");
+        }
+
+        $query = "ALTER TABLE csrf_tokens ADD COLUMN status ENUM('valid', 'used', 'expired') DEFAULT 'valid'";
+
+        try {
+            $this->getDb()->getDbh()->query($query);
+            $this->getDb()->errorLog("addStatusColumn success: Status column added to the table");
+            return true;
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("addStatusColumn error: Status column didn't to the table", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+        }
+
+        return false;
+    }
+
+    /**
+     * Removes status column to csrf_tokens table.
+     * SAVE_CSRF_STATUS must be set to `false` in csrf_config.php
+     * Checks if the column exists and SAVE_CSRF_STATUS is set for saving status.
+     * @return bool Returns true status column is removed, otherwise false.
+     */
+    public function removeStatusColumn(): bool 
+    {
+        if (SAVE_CSRF_STATUS === true) {
+            throw new Exception("SAVE_CSRF_STATUS is set to true.");
+        }
+
+        // Checks if the column already exists
+        if ($this->doesColumnStatusExist() === false) {
+            throw new Exception("`status` column doesn't exist.");
+        }
+
+        $query = "ALTER TABLE csrf_tokens DROP COLUMN status";
+
+        try {
+            $this->getDb()->getDbh()->query($query);
+            $this->getDb()->errorLog("removeStatusColumn success: Status column is removed.");
+            return true;
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("removeStatusColumn error: Status column isn't removed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if status column exists in csrf_tokens table.
+     * @return bool Returns true if status column exists, otherwise false.
+     */
+    public function doesColumnStatusExist(): bool 
+    {
+        $query = "DESCRIBE " . DB_NAME . ".csrf_tokens";
+        $stmt = $this->getDb()->getDbh()->query($query);
+        $table = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($table as $column) {
+            if ($column['Field'] === 'status') {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
