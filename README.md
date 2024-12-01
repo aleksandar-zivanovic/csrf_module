@@ -89,6 +89,26 @@ $csrf->removeIndex('status'); // Removes index for the 'status' column
 $csrf->removeIndex(['status', 'timestamp']); // Removes index for both 'status' and 'timestamp' columns
 ```
 
+- ### Cleaning Token During User Logout
+
+When a user logs out, it is recommended to delete all user's tokens or change status of 'valid' CSRF token(s) to reduce the risk of misuse. You can utilize the existing method for:  
+
+- deleting tokens:
+
+```php
+$csrf = new CSRF();
+$csrf-logoutTokensCleanup('delete'); // when you want to delete
+```
+
+- changing token status to 'expired':
+
+```php
+$csrf = new CSRF();
+$csrf->logoutTokensCleanup('update'); // when you want to change status
+```
+
+This will change status of all tokens to 'expired' or remove all tokens associated with the current user's ID from the database. Ensure the session contains a valid user_id for this method to work.
+
 ## Cleaning Expired CSRF Tokens
 
 The module includes functionality for cleaning expired CSRF tokens from the database. Tokens are considered expired if their timestamp exceeds a specified expiration time. This cleanup process can be automated by calling the `allTokensCleanUp` method, which will remove expired tokens based on the configured expiration time.
