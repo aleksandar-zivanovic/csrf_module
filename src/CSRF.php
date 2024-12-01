@@ -237,6 +237,7 @@ class CSRF
     // Changes token status
     public function changeTokenStatus(string|array $id, string $status): bool 
     {
+        // TODO: make validation for $status allowed values: valid, expired and used
         $db = $this->getDb()->getDbh();
         $query = "UPDATE csrf_tokens SET status = :st WHERE ";
 
@@ -252,6 +253,7 @@ class CSRF
         $stmt = $db->prepare($query);
         $stmt->bindValue(":st", $status, PDO::PARAM_STR);
         if (is_string($id)) $stmt->bindValue(":id", $id, PDO::PARAM_STR);
+        // TODO: Add try-catche block
         if (!$stmt->execute() || $stmt->rowCount() == 0) { 
             $this->getDb()->errorLog("changeTokenStatus() method error: execution() failed");
             return false;
@@ -395,5 +397,49 @@ class CSRF
         // Something unpredicted happened
         $this->dbInstance->errorLog("allTokensCleanUp() method <strong>error:</strong> something unpredicted happened!");
         return false;
+    }
+
+    /**
+     * Canceling user's token(s) during logout process, by deleting them or changing status to `expired`.
+     * @param string $action Action 'delete' or 'update' depending what action you want to perform.
+     * @return bool Returns true if action is done or there are no tokens, otherwise false.
+     */
+    public function logoutTokensCleanup(string $action): bool
+    {
+        if (!in_array($action, ['delete', 'update'])) return false;
+
+        if ($action === 'delete') {
+            return $this->deleteToken('user_id', $this->getUserIdFromSession());
+        }
+
+        if ($action === 'update') {
+            if (SAVE_CSRF_STATUS !== true) {
+                throw new LogicException("Saving status is not allowed! Read installation for enabling this feature");
+            }
+
+            $conditions = [
+                [
+                    'column' => 'user_id', 
+                    'operator' => '=', 
+                    'value' => $this->getUserIdFromSession()
+                ]
+            ];
+            $usersAllTokens = $this->getTokensWithData($conditions);
+
+            if ($usersAllTokens === null) {
+                return true;
+            }
+
+            $ids = [];
+            foreach ($usersAllTokens as $token) {
+                if ($token['status'] === 'valid') {
+                    $ids[] = $token['id'];
+                }
+            }
+
+            if (empty($ids)) return true;
+
+            return $this->changeTokenStatus($ids, 'expired');
+        }
     }
 }
