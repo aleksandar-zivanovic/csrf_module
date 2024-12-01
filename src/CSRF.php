@@ -101,7 +101,7 @@ class CSRF
         
         // Checks if a token exists in the database
         $conditions = [['column' => 'token', 'operator' => '=', 'value' => $this->csrfToken]];
-        $tokenFromDb = $this->getTokensWithData($conditions);
+        $tokenFromDb = $this->getTokensWithData($conditions)[0];
         if ($tokenFromDb === null) return false;
 
         // Compare user's ID from session and from the database
@@ -169,9 +169,7 @@ class CSRF
      *  ['column' => 'user_id', 'operator' => '>=', 'value' => 123]
      * ]
      * 
-     * 
-     * @return array|null Returns either a single token (associative array) or multiple tokens (multidimensional array). Null if no tokens are found.
-
+     * @return array|null Returns multidimensional array if record(s) are found, otherwise null.
      */
     public function getTokensWithData(?array $conditions = null): array|null
     {
@@ -231,10 +229,6 @@ class CSRF
         }
 
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        if (count($result) === 1) {
-            return $result[0];
-        }
 
         return empty($result) ? null : $result;
     }
