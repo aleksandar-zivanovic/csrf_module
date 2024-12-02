@@ -69,6 +69,26 @@ if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
 }
 ```
 
+- ### Adding and Removing `status` column to/from `csrf_token` table
+
+- **Adding** `status` column:
+    1. Set `SAVE_CSRF_STATUS` constant in `csrf_config.php` to `true`
+    2. Call `addStatusColumn` method
+
+    ```php
+    $manager = new DatabaseSchemaManager();
+    $manager->addStatusColumn();
+    ```
+
+- **Removing** `status` column:
+    1. Set `SAVE_CSRF_STATUS` constant in `csrf_config.php` to `false`
+    2. Call `removeStatusColumn` method:
+
+    ```php
+    $manager = new DatabaseSchemaManager();
+    $manager->removeStatusColumn();
+    ```
+
 - ### Creating and Removing Indexes for Columns
 
 - To create an index on specific columns (`status`, `timestamp`, or both), use the `addIndex` method:
