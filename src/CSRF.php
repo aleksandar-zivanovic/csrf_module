@@ -46,25 +46,29 @@ class CSRF
 
         // Sets $this->userId value from session 
         $this->userId = $this->getUserIdFromSession();
-        if ($this->userId == 0) {
-            echo "Error: User ID session key is missing or invalid.";
-            die();
+        if (!is_int($this->userId) || $this->userId <= 0) {
+            throw new UnexpectedValueException("User ID session value is missing or invalid.");
         }
 
-        $db = $this->getDb()->getDbh();
-
         $query = "INSERT INTO csrf_tokens (token, timestamp, status, user_id) VALUES (:tk, :ts, :st, :ui)";
-        $stmt =  $db->prepare($query);
-        $stmt->bindValue(":tk", $this->csrfToken, PDO::PARAM_STR);
-        $stmt->bindValue(":ts", $this->timestamp, PDO::PARAM_INT);
-        $stmt->bindValue(":st", "valid", PDO::PARAM_STR);
-        $stmt->bindValue(":ui", $this->userId, PDO::PARAM_INT);
-        $stmt->execute();
+
+        try {
+            $stmt =  $this->getDb()->getDbh()->prepare($query);
+            $stmt->bindValue(":tk", $this->csrfToken, PDO::PARAM_STR);
+            $stmt->bindValue(":ts", $this->timestamp, PDO::PARAM_INT);
+            $stmt->bindValue(":st", "valid", PDO::PARAM_STR);
+            $stmt->bindValue(":ui", $this->userId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("generateAndSaveCsrfToken error: INSERT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new RuntimeException("generateAndSaveCsrfToken method query execution failed");
+        }
+
         $result = $stmt->rowCount() >= 1 ? 'success' : 'fail';
+
         if ($result == 'fail') {
             $this->getDb()->errorLog("generateAndSaveCsrfToken() method error: execution() failed");
         }
-
     }
 
     /**
@@ -73,8 +77,9 @@ class CSRF
      */
     public function getUserIdFromSession(): int
     {
+        // TODO: add ` || $_SESSION[USER_ID_SESSION_KEY < 1]` inside if block
         if (!isset($_SESSION[USER_ID_SESSION_KEY]) || !is_int($_SESSION[USER_ID_SESSION_KEY])) {
-            return 0;
+            throw new OutOfRangeException("User ID is not found in session or is not valid.");
         }
         
         return htmlspecialchars(trim($_SESSION[USER_ID_SESSION_KEY]));
@@ -117,8 +122,7 @@ class CSRF
         if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) {
             if (SAVE_CSRF_STATUS === true) {
                 if ($this->changeTokenStatus($tokenFromDb['id'], 'expired') === false) {
-                    echo "The token is expired and changing its status failed. Genearte new token";
-                    die();
+                    throw new RuntimeException("Failed to update the token status to 'expired'.");
                 };
                 return false;
             }
@@ -212,20 +216,21 @@ class CSRF
             $query .= " WHERE " . implode(" AND ", $whereClause);
         }
 
-        $stmt = $this->getDb()->getDbh()->prepare($query);
-
-        // Binds values
-        if ($conditions !== null) {
-            foreach ($conditions as $condition) {
-                $pdoBind = in_array($condition['column'], ['token', 'status']) ? PDO::PARAM_STR : PDO::PARAM_INT;
-                $stmt->bindValue(":{$condition['column']}", $condition['value'], $pdoBind);
-            }
-        }
-
         try {
+            $stmt = $this->getDb()->getDbh()->prepare($query);
+
+            // Binds values
+            if ($conditions !== null) {
+                foreach ($conditions as $condition) {
+                    $pdoBind = in_array($condition['column'], ['token', 'status']) ? PDO::PARAM_STR : PDO::PARAM_INT;
+                    $stmt->bindValue(":{$condition['column']}", $condition['value'], $pdoBind);
+                }
+            }
+
             $stmt->execute();
         } catch (PDOException $e) {
             $this->getDb()->errorLog("getTokensWithData error: SELECT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new RuntimeException("getTokensWithData method query execution failed");
         }
 
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -238,28 +243,50 @@ class CSRF
     public function changeTokenStatus(string|array $id, string $status): bool 
     {
         // TODO: make validation for $status allowed values: valid, expired and used
-        $db = $this->getDb()->getDbh();
         $query = "UPDATE csrf_tokens SET status = :st WHERE ";
 
         if (is_array($id)) {
-            $stringOfIds = implode(", ", $id);
-            $query .= " id IN (" . $stringOfIds . ")";
+            $placeholders = [];
+            foreach ($id as $key => $value) {
+                $placeholders[] = ":id{$key}";
+            }
+
+            $query .= " id IN (" . implode(", ", $placeholders) . ")";
         }
 
         if (is_string($id)) {
             $query .= " id = :id";
         }
-        
-        $stmt = $db->prepare($query);
-        $stmt->bindValue(":st", $status, PDO::PARAM_STR);
-        if (is_string($id)) $stmt->bindValue(":id", $id, PDO::PARAM_STR);
-        // TODO: Add try-catche block
-        if (!$stmt->execute() || $stmt->rowCount() == 0) { 
-            $this->getDb()->errorLog("changeTokenStatus() method error: execution() failed");
+
+        try {
+            $stmt = $this->getDb()->getDbh()->prepare($query);
+
+            if (is_array($id)) {
+                foreach ($id as $key => $value) {
+                    $stmt->bindValue(":id{$key}", $value, PDO::PARAM_INT);
+                }
+            }
+            
+            if (is_string($id)) {
+                $stmt->bindValue(":id", $id, PDO::PARAM_STR);
+            }
+
+            $stmt->bindValue(":st", $status, PDO::PARAM_STR);
+            $stmt->execute(); 
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("changeTokenStatus() method error: execution() failed.", [
+                "message" => $e->getMessage(), 
+                'code' => $e->getCode()
+            ]);
             return false;
-        } else {
+        }
+
+        // Returns true if token status is changed
+        if ($stmt->rowCount() > 0) {
             return true;
         }
+
+        return false;
     }
 
     // Delete token or tokens by column name and value
@@ -277,12 +304,17 @@ class CSRF
             $query .= "= " . $value;
         }
 
-        $stmt = $db->getDbh()->prepare($query);
-        if (!$stmt->execute() || $stmt->rowCount() < 1) {
-            $this->dbInstance->errorLog("deleteToken() method error: execution() failed or rowCount() < 1");
-            return false;
-        } else {
+        try {
+            $stmt = $db->getDbh()->prepare($query);
+            $stmt->execute();
+            if ($stmt->rowCount() < 1) {
+                $this->dbInstance->errorLog("deleteToken() method error:  rowCount() < 1");
+                return false;
+            }
             return true;
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("deleteToken() method error: execution() failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            return false; 
         }
     }
 
@@ -291,6 +323,7 @@ class CSRF
      */
     public function deleteAllTokensByIdArray(array $ids): bool
     {
+        // TODO: remove this method and its application in other methods
         return $this->deleteToken('id', $ids) ? true : false;
     }
 
@@ -312,6 +345,8 @@ class CSRF
      * 
      */
     public function allTokensCleanUp(
+        // TODO: change bool $timestamp = false makes problem. Check it and fix.
+        // TODO: when SAVE_CSRF_STATUS = true and $timestamp = false changes all token's 'valid' status to 'expired', event they are not expired yet.
         bool $timestamp = false, 
         string|array|null $status = null, 
         ?int $userId = null
@@ -321,7 +356,7 @@ class CSRF
         // If an unauthorized access attempt is detected, an error is logged, and the method is terminated with an appropriate message.
         if (!isset($_SESSION[ROLE_NAME]) || $_SESSION[ROLE_NAME] != ROLE_VALUE) {
             $this->getDb()->errorLog("allTokensCleanUp metod error: Unauthorized access attempt.");
-            die('You do not have the required permissions.');
+            throw new Exception("You do not have the required permissions.");
         }
 
         // Provides only 'valid' status may be changed
@@ -357,18 +392,23 @@ class CSRF
                 $query .= "user_id = :ui";
                 $bindUser = true;
             } else {
-                die ("Invalid method call!");
+                throw new InvalidArgumentException("Invalid argument value.");
             }
         }
-        
-        $stmt = $db->getDbh()->prepare($query);
 
-        // Binds values
-        if ($bindTimestamp === true) $stmt->bindValue(":tl", $timeLimit, PDO::PARAM_INT);
-        if ($bindStatus === true) $stmt->bindValue(":st", $status, PDO::PARAM_STR);
-        if ($bindUser === true) $stmt->bindValue(":ui", $userId, PDO::PARAM_INT);
+        try {
+            $stmt = $db->getDbh()->prepare($query);
 
-        $stmt->execute();
+            // Binds values
+            if ($bindTimestamp === true) $stmt->bindValue(":tl", $timeLimit, PDO::PARAM_INT);
+            if ($bindStatus === true) $stmt->bindValue(":st", $status, PDO::PARAM_STR);
+            if ($bindUser === true) $stmt->bindValue(":ui", $userId, PDO::PARAM_INT);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("allTokensCleanUp error: query execution failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new RuntimeException("allTokensCleanUp method query execution failed");
+        }
+
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Returns false if there are no expired tokens

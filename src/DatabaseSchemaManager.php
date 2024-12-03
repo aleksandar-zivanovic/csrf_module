@@ -77,6 +77,7 @@ class DatabaseSchemaManager
      */
     public function createTable(): bool
     {
+        // TODO: Add checking if the current user is admin or not
         if ($this->checkIfTableExists()) {
             $this->getDb()->errorLog("createTable: Table already exists in database.");
             return $this->closeAndReturn(false);
@@ -121,6 +122,7 @@ class DatabaseSchemaManager
      */
     public function deleteTable(): bool
     {
+        // TODO: Add checking if the current user is admin or not
         if ($this->checkIfTableExists() == false) {
             $this->getDb()->errorLog("deleteTable metod error: Table doesn't exist.");
             return $this->closeAndReturn(false);
@@ -145,10 +147,16 @@ class DatabaseSchemaManager
     public function checkIfTableExists(): bool
     {
         $query = "SHOW TABLES FROM " . DB_NAME . " LIKE 'csrf_tokens'";
-        $stmt =  $this->getDb()->getDbh()->prepare($query);
-        $stmt->execute();
 
-        return $stmt->rowCount() > 0 ? true : false;
+        try {
+            $stmt =  $this->getDb()->getDbh()->prepare($query);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("checkIfTableExists error: failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new RuntimeException("Failed to check if csrf_tokens table exists in the database.");
+        }
+
+        return $stmt->rowCount() > 0;
     }
 
     /**
@@ -314,8 +322,15 @@ class DatabaseSchemaManager
     public function findAllIndexes(): array
     {
         $sql = "SHOW INDEXES FROM csrf_tokens";
-        $stmt = $this->getDb()->getDbh()->prepare($sql);
-        $stmt->execute();
+
+        try {
+            $stmt = $this->getDb()->getDbh()->prepare($sql);
+            $stmt->execute();
+        } catch (PDOException $e) {
+            $this->getDb()->errorLog("findAllIndexes error", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new RuntimeException("findAllIndexes method query execution failed");
+        }
+
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -376,6 +391,7 @@ class DatabaseSchemaManager
                 $formattedColumn = "idx_" . $column . "";
             }
 
+            // TODO: fix with apropriate logic (compare $formatedColumn with $value)
             if (str_contains(haystack: $value, needle: $formattedColumn)) return true;
         }
 
