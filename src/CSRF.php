@@ -241,7 +241,10 @@ class CSRF
     // Changes token status
     public function changeTokenStatus(string|array $id, string $status): bool 
     {
-        // TODO: make validation for $status allowed values: valid, expired and used
+        if (!in_array($status, $this->allowedStatuses)) {
+            throw new InvalidArgumentException("Invalid argument value for status parameter.");
+        }
+
         $query = "UPDATE csrf_tokens SET status = :st WHERE ";
 
         if (is_array($id)) {
