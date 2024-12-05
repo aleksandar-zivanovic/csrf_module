@@ -73,12 +73,11 @@ class CSRF
 
     /**
      * Getting user's ID from session and setting userId property 
-     * if the session value exists and is integer type
+     * if the session value exists and is a postive integer
      */
     public function getUserIdFromSession(): int
     {
-        // TODO: add ` || $_SESSION[USER_ID_SESSION_KEY < 1]` inside if block
-        if (!isset($_SESSION[USER_ID_SESSION_KEY]) || !is_int($_SESSION[USER_ID_SESSION_KEY])) {
+        if (!isset($_SESSION[USER_ID_SESSION_KEY]) || !is_int($_SESSION[USER_ID_SESSION_KEY]) || $_SESSION[USER_ID_SESSION_KEY] < 1) {
             throw new OutOfRangeException("User ID is not found in session or is not valid.");
         }
         
