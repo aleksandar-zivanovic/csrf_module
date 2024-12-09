@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/Logger.php';
 
 /**
  * All methods:
@@ -25,6 +26,7 @@ require_once __DIR__ . '/Database.php';
 class DatabaseSchemaManager 
 {
     private ?Database $dbInstance = null;
+    private ?Logger $logger = null;
     private array $dbIndexes = [
         'status' => INDEX_STATUS,
         'timestamp' => INDEX_TIMESTAMP,
@@ -38,6 +40,16 @@ class DatabaseSchemaManager
         }
 
         return $this->dbInstance;
+    }
+
+    // Makes instance of Logger class
+    private function getLogger(): object
+    {
+        if ($this->logger === null) {
+            $this->logger = new Logger();
+        }
+
+        return $this->logger;
     }
 
     /**
@@ -79,7 +91,7 @@ class DatabaseSchemaManager
     {
         // TODO: Add checking if the current user is admin or not
         if ($this->checkIfTableExists()) {
-            $this->getDb()->errorLog("createTable: Table already exists in database.");
+            $this->getLogger()->logInfo("createTable: Table already exists in database.");
             return $this->closeAndReturn(false);
         }
 
@@ -102,10 +114,10 @@ class DatabaseSchemaManager
         
         try {
             $this->getDb()->getDbh()->exec($sql);
-            $this->getDb()->errorLog("createTable method success: Table created");
+            $this->getLogger()->logInfo("createTable method success: Table created");
             return $this->closeAndReturn(true);
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("createTable metod error: Creating table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("createTable metod error: Creating table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return $this->closeAndReturn(false);
         }
     }
@@ -124,7 +136,8 @@ class DatabaseSchemaManager
     {
         // TODO: Add checking if the current user is admin or not
         if ($this->checkIfTableExists() == false) {
-            $this->getDb()->errorLog("deleteTable metod error: Table doesn't exist.");
+            $this->getLogger()->logInfo("deleteTable metod error: Table doesn't exist.");
+            throw new RuntimeException("'csrf_tokens' table doesn't exist.");
             return $this->closeAndReturn(false);
         }
 
@@ -132,10 +145,10 @@ class DatabaseSchemaManager
 
         try {
             $this->getDb()->getDbh()->exec($sql);
-            $this->getDb()->errorLog("deleteTable method success: Table deleted.");
+            $this->getLogger()->logInfo("deleteTable method success: Table deleted.");
             return $this->closeAndReturn(true);
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("deleteTable metod error: Deleting table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("deleteTable metod error: Deleting table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return $this->closeAndReturn(false);
         }
     }
@@ -152,7 +165,7 @@ class DatabaseSchemaManager
             $stmt =  $this->getDb()->getDbh()->prepare($query);
             $stmt->execute();
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("checkIfTableExists error: failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("checkIfTableExists error: failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new RuntimeException("Failed to check if csrf_tokens table exists in the database.");
         }
 
@@ -180,10 +193,10 @@ class DatabaseSchemaManager
 
         try {
             $this->getDb()->getDbh()->query($query);
-            $this->getDb()->errorLog("addStatusColumn success: Status column added to the table");
+            $this->getLogger()->logInfo("addStatusColumn success: Status column added to the table");
             return true;
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("addStatusColumn error: Status column didn't to the table", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("addStatusColumn error: Status column didn't to the table", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
         }
 
         return false;
@@ -210,10 +223,10 @@ class DatabaseSchemaManager
 
         try {
             $this->getDb()->getDbh()->query($query);
-            $this->getDb()->errorLog("removeStatusColumn success: Status column is removed.");
+            $this->getLogger()->logInfo("removeStatusColumn success: Status column is removed.");
             return true;
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("removeStatusColumn error: Status column isn't removed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("removeStatusColumn error: Status column isn't removed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
         }
 
         return false;
@@ -247,7 +260,7 @@ class DatabaseSchemaManager
     {
         // Checks if the column(s) is already indexed
         if ($this->isIndexOnColumn($column) === true) {
-            $this->getDb()->errorLog("addIndex error: Index already exists.");
+            $this->getLogger()->logInfo("addIndex error: Index already exists.");
             return false;
         }
 
@@ -271,10 +284,10 @@ class DatabaseSchemaManager
 
         try {
             $this->getDb()->getDbh()->exec($sql);
-            $this->getDb()->errorLog("addIndex success: Index added.");
+            $this->getLogger()->logInfo("addIndex success: Index added.");
             return true;
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("addIndex error: Adding index for column" . $errorMsgColumns . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("addIndex error: Adding index for column" . $errorMsgColumns . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return false;
         }
     }
@@ -307,10 +320,10 @@ class DatabaseSchemaManager
         try {
             $stmt = $this->getDb()->getDbh()->prepare($sql);
             $stmt->execute();
-            $this->getDb()->errorLog("removeIndex success: Index $indexName is removed.");
+            $this->getLogger()->logInfo("removeIndex success: Index $indexName is removed.");
             return true;
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("removeIndex error: Removing index " . $indexName . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("removeIndex error: Removing index " . $indexName . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return false;
         }
     }
@@ -327,7 +340,7 @@ class DatabaseSchemaManager
             $stmt = $this->getDb()->getDbh()->prepare($sql);
             $stmt->execute();
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("findAllIndexes error", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("findAllIndexes error", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new RuntimeException("findAllIndexes method query execution failed");
         }
 
