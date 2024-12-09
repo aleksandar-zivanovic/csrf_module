@@ -40,14 +40,22 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
     $manager->deleteTable();
     ```
 
-    The result of calling either method will be logged in the `csrf_module\logs\errors.log` file.
+    The result of calling either method will be logged in the `csrf_module\logs\general.log` file.
     **Note**: Deleting the table is irreversible and should only be done if you are sure it is no longer needed.
 
 3. Configuration: Rename the file `config/csrf_config.example.php` to `config/csrf_config.php`.
 
 4. Database Setup: Open `config/csrf_config.php` and configure your database settings. Update the `DB_USER`, `DB_PASS`, `DB_HOST`, and `DB_NAME` constants with your database credentials.
 
-5. Error Logging: The `Database` class includes an error logging function that will capture connection errors and log them into the `logs/errors.log` file. Make sure the `logs` folder exists, or the class will create it automatically
+## Error Logging
+
+The system logs errors into different log files inside `logs` direcotry based on the type of action:
+
+- **`db_errors.log`**: Logs database connection errors and database-related issues.
+- **`token_cleanup.log`**: Logs actions related to cleaning expired or invalid CSRF tokens.
+- **`general.log`**: Logs general application errors or significant events.
+
+The result of actions like table creation, deletion, or cleanup will be logged in the appropriate log file. If the `logs` directory doesn't exist it will be created automatically if needed.
 
 ## Usage
 

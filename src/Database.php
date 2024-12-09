@@ -21,28 +21,10 @@ class Database
         try {
             $this->dbh = new PDO($dsn, $this->user, $this->password, $options);
         } catch(PDOException $e) {
-            $this->errorLog("Error: not connected to the database!" . " | ", errorInfo: $e->getMessage());
+            require_once __DIR__ . '/Logger.php';
+            $logger = new Logger();
+            $logger ->logDatabaseError("Error: not connected to the database!" . " | ", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
         }
-    }
-
-    // writting down error log
-    public function errorLog(string $message, array|string|null $errorInfo = null): void
-    {
-        // check if the directory exists and create if not
-        $logDirectory = __DIR__ . '../../logs';
-        if (!file_exists($logDirectory)) {
-            mkdir($logDirectory, 0755, true);
-        }
-
-        // preparing final message
-        if (!empty($errorInfo)) {
-            $message .= is_array($errorInfo) ? " | PDO error: " . implode(", ", $errorInfo) : $errorInfo;
-        }
-
-        // writting down an error to the log file
-        $logFile = $logDirectory . '/errors.log';
-        $timestamp = date("Y-m-d H:i:s");
-        error_log("[$timestamp]: $message" .  PHP_EOL, 3, $logFile);
     }
 
     public function getDbh(): object

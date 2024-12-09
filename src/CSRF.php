@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/Logger.php';
 
 /**
  * All methods:
@@ -24,6 +25,7 @@ class CSRF
     public int $userId;
     private array $allowedStatuses = ['valid', 'expired', 'used'];
     private ?Database $dbInstance = null;
+    private ?Logger $logger = null;
 
     // Connects to the database
     private function getDb(): object
@@ -33,6 +35,16 @@ class CSRF
         }
 
         return $this->dbInstance;
+    }
+
+    // Makes instance of Logger class
+    private function getLogger(): object
+    {
+        if ($this->logger === null) {
+            $this->logger = new Logger();
+        }
+
+        return $this->logger;
     }
 
     // Generates CSRF token and adds data to the database
@@ -60,14 +72,14 @@ class CSRF
             $stmt->bindValue(":ui", $this->userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("generateAndSaveCsrfToken error: INSERT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("generateAndSaveCsrfToken error: INSERT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new RuntimeException("generateAndSaveCsrfToken method query execution failed");
         }
 
         $result = $stmt->rowCount() >= 1 ? 'success' : 'fail';
 
         if ($result == 'fail') {
-            $this->getDb()->errorLog("generateAndSaveCsrfToken() method error: execution() failed");
+            $this->getLogger()->logInfo("generateAndSaveCsrfToken() method error: execution() failed");
         }
     }
 
@@ -228,7 +240,7 @@ class CSRF
 
             $stmt->execute();
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("getTokensWithData error: SELECT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("getTokensWithData error: SELECT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new RuntimeException("getTokensWithData method query execution failed");
         }
 
@@ -276,7 +288,7 @@ class CSRF
             $stmt->bindValue(":st", $status, PDO::PARAM_STR);
             $stmt->execute(); 
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("changeTokenStatus() method error: execution() failed.", [
+            $this->getLogger()->logDatabaseError("changeTokenStatus() method error: execution() failed.", [
                 "message" => $e->getMessage(), 
                 'code' => $e->getCode()
             ]);
@@ -310,12 +322,12 @@ class CSRF
             $stmt = $db->getDbh()->prepare($query);
             $stmt->execute();
             if ($stmt->rowCount() < 1) {
-                $this->dbInstance->errorLog("deleteToken() method error:  rowCount() < 1");
+                $this->getLogger()->logInfo("deleteToken() method error:  rowCount() < 1");
                 return false;
             }
             return true;
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("deleteToken() method error: execution() failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("deleteToken() method error: execution() failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return false; 
         }
     }
@@ -336,9 +348,12 @@ class CSRF
      */
     public function allTokensCleanUp(bool $timestamp = true, ?int $userId = null): bool 
     {
+        $this->getLogger()->logCleanup("Cleanup started by user with ID: " . $_SESSION[USER_ID_SESSION_KEY] . ".");
+
         // Checks if the user has administrative privileges. Access is denied for non-admin users.
         if (!isset($_SESSION[ROLE_NAME]) || $_SESSION[ROLE_NAME] != ROLE_VALUE) {
-            $this->getDb()->errorLog("allTokensCleanUp metod error: Unauthorized access attempt.");
+            header('HTTP/1.1 403 Forbidden');
+            $this->getLogger()->logCleanup("allTokensCleanUp metod error: Unauthorized access attempt.");
             throw new Exception("You do not have the required permissions.");
         }
 
@@ -346,6 +361,7 @@ class CSRF
         // The combination 'timestamp = false' and 'userId = null' is invalid because it 
         // leaves no criteria for selecting tokens to clean. 
         if ($timestamp === false && $userId === null) {
+            $this->getLogger()->logInfo("allTokensCleanUp metod error: The combination of 'timestamp = false' and 'userId = null' is not allowed.");
             throw new InvalidArgumentException("The combination of 'timestamp = false' and 'userId = null' is not allowed.");
         }
 
@@ -372,6 +388,7 @@ class CSRF
                 $query .= "user_id = :ui";
                 $bindUser = true;
             } else {
+                $this->getLogger()->logInfo("allTokensCleanUp metod error: \$userId is not set or not valid.");
                 throw new InvalidArgumentException("Invalid argument value.");
             }
         }
@@ -390,7 +407,7 @@ class CSRF
             if ($bindUser === true) $stmt->bindValue(":ui", $userId, PDO::PARAM_INT);
             $stmt->execute();
         } catch (PDOException $e) {
-            $this->getDb()->errorLog("allTokensCleanUp error: query execution failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            $this->getLogger()->logDatabaseError("allTokensCleanUp error: query execution failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new RuntimeException("allTokensCleanUp method query execution failed");
         }
 
@@ -398,6 +415,7 @@ class CSRF
 
         // Returns false if there are no expired tokens
         if (empty($result)) {
+            $this->getLogger()->logCleanup("Nothing to clean.");
             return false;
         };
 
@@ -409,17 +427,20 @@ class CSRF
 
         // Deletes all time outed tokens
         if (SAVE_CSRF_STATUS === false) {
-            return $this->deleteToken('id', $expiredTokens);
+            $this->deleteToken('id', $expiredTokens);
+            $this->getLogger()->logCleanup("Deleted 'expired' tokens.");
+            return true;
         }
         
         // Changes status to 'expired' to all time outed tokens with current status 'valid'
         if (SAVE_CSRF_STATUS === true) {
             $this->changeTokenStatus($expiredTokens, 'expired');
+            $this->getLogger()->logCleanup("Changed status from 'valid' to 'expired' to all time outed tokens.");
             return true;
         }
         
         // Something unpredicted happened
-        $this->dbInstance->errorLog("allTokensCleanUp() method <strong>error:</strong> something unpredicted happened!");
+        $this->getLogger()->logCleanup("Something unpredicted happened!");
         return false;
     }
 
