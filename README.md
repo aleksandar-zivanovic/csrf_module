@@ -1,8 +1,16 @@
 # CSRF Module
 
+## Versions
+
+This module follows [SemVer](https://semver.org/) versioning rules.  
+
+- **1.0.0**: Initial stable release.
+
 ## Description
 
 This module provides functionality to generate and validate CSRF tokens. It ensures protection against CSRF attacks by verifying that requests originate from trusted sources.
+
+**Current Version**: 1.0.0
 
 ## Features
 
