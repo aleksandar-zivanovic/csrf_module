@@ -394,18 +394,19 @@ class DatabaseSchemaManager
         foreach ($indexKeyNameValues as $value) {
             // Format the column name for comparison
             if (is_array($column)) {
-                $formattedColumn = implode("_", $column);
+                $formattedColumn = "idx_" . implode("_", $column);
 
                 // Adjust specific column names to match index naming convention
-                if ($formattedColumn === "timestamp_status") {
-                    $formattedColumn = "status_timestamp";
+                if ($formattedColumn === "idx_timestamp_status") {
+                    $formattedColumn = "idx_status_timestamp";
                 }
             } else {
                 $formattedColumn = "idx_" . $column . "";
             }
 
-            // TODO: fix with apropriate logic (compare $formatedColumn with $value)
-            if (str_contains(haystack: $value, needle: $formattedColumn)) return true;
+            if ($formattedColumn === $value) {
+                return true;
+            }
         }
 
         return false;
