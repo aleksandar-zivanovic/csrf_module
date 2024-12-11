@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * All methods:
+ * 
+ * writeLog(): void                                               - main method for writting down logs
+ * logDatabaseError(): void                                       - creates database related logs
+ * logCleanup(): void                                             - creates clean up related logs
+ * logInfo(): void                                                - creates all other logs
+ * 
+ */
+
 class Logger
 {
     /**

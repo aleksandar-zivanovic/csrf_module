@@ -15,6 +15,7 @@ require_once __DIR__ . '/Logger.php';
  * changeTokenStatus(string|array $id, string $status): bool      - changes token status
  * deleteToken(string $column, string|int|array $value): bool     - deletes a token by criteria
  * allTokensCleanUp(bool $timestamp,string|array|null $status, ?int $userId) - cleans up tokens
+ * logoutTokensCleanup(string $action): bool                      - destroies user's token on logout
  * 
  */
 
