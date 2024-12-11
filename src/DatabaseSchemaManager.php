@@ -5,6 +5,7 @@ require_once __DIR__ . '/Logger.php';
 /**
  * All methods:
  * 
+ * __construct()
  * getDb(): object                              - connects to Database
  * closeConnection(): void                      - closes connection to Database
  * closeAndReturn(bool $return)                 - closes connection to Database and returns $return
@@ -32,6 +33,13 @@ class DatabaseSchemaManager
         'timestamp' => INDEX_TIMESTAMP,
         'status_timestamp' => INDEX_BOTH,
     ];
+
+    public function __construct()
+    {
+        if (!$this->isUserAdmin()) {
+            throw new LogicException("Access denied: This class is restricted to admin users.");
+        }
+    }
 
     private function getDb(): object 
     {
@@ -89,7 +97,6 @@ class DatabaseSchemaManager
      */
     public function createTable(): bool
     {
-        // TODO: Add checking if the current user is admin or not
         if ($this->checkIfTableExists()) {
             $this->getLogger()->logInfo("createTable: Table already exists in database.");
             return $this->closeAndReturn(false);
@@ -134,7 +141,6 @@ class DatabaseSchemaManager
      */
     public function deleteTable(): bool
     {
-        // TODO: Add checking if the current user is admin or not
         if ($this->checkIfTableExists() == false) {
             $this->getLogger()->logInfo("deleteTable metod error: Table doesn't exist.");
             throw new RuntimeException("'csrf_tokens' table doesn't exist.");
@@ -410,5 +416,15 @@ class DatabaseSchemaManager
         }
 
         return false;
+    }
+
+    /**
+     * Checks if the current user is admin by taking by comparing
+     * values of $_SESSION[ROLE_NAME] and ROLE_VALUE.
+     * @return bool Returns true if user is an Admin, otherwise false
+     */
+    private function isUserAdmin(): bool 
+    {
+        return $_SESSION[ROLE_NAME] ?? null === ROLE_VALUE;
     }
 }
