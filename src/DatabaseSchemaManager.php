@@ -315,10 +315,7 @@ class DatabaseSchemaManager
     public function removeIndex(string|array $column): bool 
     {
         // Checks if parameter $column is allowed value
-        if ($this->checkAllowedColumnsForIndex($column) === false) {
-            // TODO: throw new \Exception("The value for \$column parameter is not allowed.");
-            return false;
-        }
+        $this->checkAllowedColumnsForIndex($column);
         
         // Makes qualified name of the new index
         $indexName = is_array($column) ? "idx_status_timestamp" : "idx_" . $column;
@@ -374,19 +371,22 @@ class DatabaseSchemaManager
 
     /**
      * Checks if column/columns parameter has allowed value.
-     * Alowed values: 'status', 'timestamp', ['status', 'timestamp'] and ['timestamp', 'status']
-     * @param string|array $column Value that should be checked
-     * @return bool Returns true if $column has allowed value, otherwise returns false
+     * Alowed values: 'status', 'timestamp', ['status', 'timestamp'] and ['timestamp', 'status'].
+     * @param string|array $column Value that should be checked.
+     * @throws InvalidArgumentException If $column has a disallowed value.
+     * @return void
      */
-    public function checkAllowedColumnsForIndex(string|array $column): bool 
+    public function checkAllowedColumnsForIndex(string|array $column): void 
     {
         $allowedArrays = [['status', 'timestamp'], ['timestamp', 'status']];
         $allowedStrings = ['status', 'timestamp'];
         if (is_array($column)) {
-            return in_array($column, $allowedArrays, true);
+            if (!in_array($column, $allowedArrays, true)) {
+                throw new \InvalidArgumentException("Invalid column array. Allowed values are ['status', 'timestamp'] or ['timestamp', 'status'].");
+            }
+        }elseif (!in_array($column, $allowedStrings, true)) {
+            throw new \InvalidArgumentException("Invalid column value. Allowed values are 'status' and 'timestamp'.");
         }
-
-        return in_array($column, $allowedStrings, true);
     }
 
     /**
