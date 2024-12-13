@@ -1,6 +1,13 @@
 <?php
-require_once __DIR__ . '/Database.php';
-require_once __DIR__ . '/Logger.php';
+namespace CSRFModule;
+
+require_once __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'autoload.php';
+
+use CSRFModule\Database;
+use CSRFModule\Logger;
+
+// require_once __DIR__ . '/Database.php';
+// require_once __DIR__ . '/Logger.php';
 
 /**
  * All methods:
@@ -37,7 +44,7 @@ class DatabaseSchemaManager
     public function __construct()
     {
         if (!$this->isUserAdmin()) {
-            throw new LogicException("Access denied: This class is restricted to admin users.");
+            throw new \LogicException("Access denied: This class is restricted to admin users.");
         }
     }
 
@@ -123,7 +130,7 @@ class DatabaseSchemaManager
             $this->getDb()->getDbh()->exec($sql);
             $this->getLogger()->logInfo("createTable method success: Table created");
             return $this->closeAndReturn(true);
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("createTable metod error: Creating table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return $this->closeAndReturn(false);
         }
@@ -143,7 +150,7 @@ class DatabaseSchemaManager
     {
         if ($this->checkIfTableExists() == false) {
             $this->getLogger()->logInfo("deleteTable metod error: Table doesn't exist.");
-            throw new RuntimeException("'csrf_tokens' table doesn't exist.");
+            throw new \RuntimeException("'csrf_tokens' table doesn't exist.");
             return $this->closeAndReturn(false);
         }
 
@@ -153,7 +160,7 @@ class DatabaseSchemaManager
             $this->getDb()->getDbh()->exec($sql);
             $this->getLogger()->logInfo("deleteTable method success: Table deleted.");
             return $this->closeAndReturn(true);
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("deleteTable metod error: Deleting table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return $this->closeAndReturn(false);
         }
@@ -170,9 +177,9 @@ class DatabaseSchemaManager
         try {
             $stmt =  $this->getDb()->getDbh()->prepare($query);
             $stmt->execute();
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("checkIfTableExists error: failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
-            throw new RuntimeException("Failed to check if csrf_tokens table exists in the database.");
+            throw new \RuntimeException("Failed to check if csrf_tokens table exists in the database.");
         }
 
         return $stmt->rowCount() > 0;
@@ -187,12 +194,12 @@ class DatabaseSchemaManager
     public function addStatusColumn(): bool 
     {
         if (SAVE_CSRF_STATUS === false) {
-            throw new Exception("SAVE_CSRF_STATUS is set to false.");
+            throw new \Exception("SAVE_CSRF_STATUS is set to false.");
         }
 
         // Checks if the column already exists
         if ($this->doesColumnStatusExist() === true) {
-            throw new Exception("`status` column already exists.");
+            throw new \Exception("`status` column already exists.");
         }
 
         $query = "ALTER TABLE csrf_tokens ADD COLUMN status ENUM('valid', 'used', 'expired') DEFAULT 'valid'";
@@ -201,7 +208,7 @@ class DatabaseSchemaManager
             $this->getDb()->getDbh()->query($query);
             $this->getLogger()->logInfo("addStatusColumn success: Status column added to the table");
             return true;
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("addStatusColumn error: Status column didn't to the table", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
         }
 
@@ -217,12 +224,12 @@ class DatabaseSchemaManager
     public function removeStatusColumn(): bool 
     {
         if (SAVE_CSRF_STATUS === true) {
-            throw new Exception("SAVE_CSRF_STATUS is set to true.");
+            throw new \Exception("SAVE_CSRF_STATUS is set to true.");
         }
 
         // Checks if the column already exists
         if ($this->doesColumnStatusExist() === false) {
-            throw new Exception("`status` column doesn't exist.");
+            throw new \Exception("`status` column doesn't exist.");
         }
 
         $query = "ALTER TABLE csrf_tokens DROP COLUMN status";
@@ -231,7 +238,7 @@ class DatabaseSchemaManager
             $this->getDb()->getDbh()->query($query);
             $this->getLogger()->logInfo("removeStatusColumn success: Status column is removed.");
             return true;
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("removeStatusColumn error: Status column isn't removed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
         }
 
@@ -246,7 +253,7 @@ class DatabaseSchemaManager
     {
         $query = "DESCRIBE " . DB_NAME . ".csrf_tokens";
         $stmt = $this->getDb()->getDbh()->query($query);
-        $table = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $table = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         foreach ($table as $column) {
             if ($column['Field'] === 'status') {
                 return true;
@@ -292,7 +299,7 @@ class DatabaseSchemaManager
             $this->getDb()->getDbh()->exec($sql);
             $this->getLogger()->logInfo("addIndex success: Index added.");
             return true;
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("addIndex error: Adding index for column" . $errorMsgColumns . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return false;
         }
@@ -309,6 +316,7 @@ class DatabaseSchemaManager
     {
         // Checks if parameter $column is allowed value
         if ($this->checkAllowedColumnsForIndex($column) === false) {
+            // TODO: throw new \Exception("The value for \$column parameter is not allowed.");
             return false;
         }
         
@@ -328,7 +336,7 @@ class DatabaseSchemaManager
             $stmt->execute();
             $this->getLogger()->logInfo("removeIndex success: Index $indexName is removed.");
             return true;
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("removeIndex error: Removing index " . $indexName . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             return false;
         }
@@ -345,12 +353,12 @@ class DatabaseSchemaManager
         try {
             $stmt = $this->getDb()->getDbh()->prepare($sql);
             $stmt->execute();
-        } catch (PDOException $e) {
+        } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("findAllIndexes error", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
-            throw new RuntimeException("findAllIndexes method query execution failed");
+            throw new \RuntimeException("findAllIndexes method query execution failed");
         }
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
@@ -394,7 +402,7 @@ class DatabaseSchemaManager
 
         // Checks if the $column value is allowed value
         if ($this->checkAllowedColumnsForIndex($column) === false) {
-            throw new Exception("The value for \$column parameter is not allowed.");
+            throw new \Exception("The value for \$column parameter is not allowed.");
         }
 
         foreach ($indexKeyNameValues as $value) {

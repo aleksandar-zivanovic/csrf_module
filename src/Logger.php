@@ -1,4 +1,5 @@
 <?php
+namespace CSRFModule;
 
 /**
  * All methods:
@@ -46,8 +47,8 @@ class Logger
         $timestamp = date("Y-m-d H:i:s");
         try {
             error_log("[$timestamp]: $message" .  PHP_EOL, 3, $logFile);
-        } catch (Exception $e) {
-            throw new Exception("Writting log failed!" . $e->getMessage());
+        } catch (\Exception $e) {
+            throw new \Exception("Writting log failed!" . $e->getMessage());
         }
     }
 
