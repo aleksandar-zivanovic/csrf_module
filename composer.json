@@ -1,0 +1,22 @@
+{
+    "name": "aleksandarz/csrfmodule",
+    "description": "A simple CSRF protection module for PHP.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+      {
+        "name": "Aleksandar Zivanovic"
+      }
+    ],
+    "require": {
+      "php": "^8.2"
+    },
+    "version": "1.0.0",
+    "autoload": {
+      "psr-4": {
+        "CSRFModule\\": "src/"
+      }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+  }
