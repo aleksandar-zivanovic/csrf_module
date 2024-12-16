@@ -1,22 +1,25 @@
 {
-    "name": "aleksandarz/csrfmodule",
-    "description": "A simple CSRF protection module for PHP.",
-    "type": "library",
-    "license": "MIT",
-    "authors": [
-      {
-        "name": "Aleksandar Zivanovic"
-      }
-    ],
-    "require": {
-      "php": "^8.2"
-    },
-    "version": "1.0.0",
-    "autoload": {
-      "psr-4": {
-        "CSRFModule\\": "src/"
-      }
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true
-  }
+  "name": "aleksandarz/csrfmodule",
+  "type": "library",
+  "description": "A simple CSRF protection module for PHP that stores tokens in a MySQL database.",
+  "keywords": ["csrf", "security", "php", "mysql", "token", "protection", "csrf-protection", "php-library"],
+  "homepage": "https://github.com/aleksandar-zivanovic/csrf_module",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Aleksandar Zivanovic",
+      "email": "acas_mail@yahoo.com",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": "^8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "CSRFModule\\": "src/"
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

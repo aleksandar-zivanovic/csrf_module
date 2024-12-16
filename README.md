@@ -21,7 +21,22 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 
 ## Installation
 
-1. Download the module and place it in your project’s modules directory
+1. You can install the module in two ways:
+
+    - **Install via Composer (Recommended)**
+
+    The easiest way to install the module is via Composer. Run the following command to add it to your project:
+
+    ```bash
+    composer require aleksandarz/csrfmodule
+    ```
+
+    This will automatically add the module to your project.
+
+    - **Manual Installation (Download from GitHub)**
+
+    Alternatively, you can download the module manually from GitHub and place it in your project’s modules directory.
+
 2. Database Setup. Code for creating the table will be handled by the `createTable` method inside `DatabaseSchemaManager` class. Table configuration is set in `config/csrf_config.php`.
 
     If the `SAVE_CSRF_STATUS` constant is set to `true`, the `status` column will be included. If set to `false`, the column will be omitted.
