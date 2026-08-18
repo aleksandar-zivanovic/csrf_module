@@ -41,8 +41,11 @@ class DatabaseSchemaManager
         'status_timestamp' => INDEX_BOTH,
     ];
 
-    public function __construct()
+    public function __construct(?Database $db = null, ?Logger $logger = null)
     {
+        $this->dbInstance = $db;
+        $this->logger = $logger;
+
         if (!$this->isUserAdmin()) {
             throw new \LogicException("Access denied: This class is restricted to admin users.");
         }

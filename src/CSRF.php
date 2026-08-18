@@ -31,6 +31,12 @@ class CSRF
     private ?Database $dbInstance = null;
     private ?Logger $logger = null;
 
+    public function __construct(?Database $db = null, ?Logger $logger = null)
+    {
+        $this->dbInstance = $db;
+        $this->logger = $logger;
+    }
+
     // Connects to the database
     private function getDb(): object
     {
