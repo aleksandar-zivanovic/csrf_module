@@ -30,11 +30,13 @@ class CSRF
     private array $allowedStatuses = ['valid', 'expired', 'used'];
     private ?Database $dbInstance = null;
     private ?Logger $logger = null;
+    private Config $config;
 
-    public function __construct(?Database $db = null, ?Logger $logger = null)
+    public function __construct(?Database $db = null, ?Logger $logger = null, ?Config $config = null)
     {
         $this->dbInstance = $db;
         $this->logger = $logger;
+        $this->config = $config ?? new Config();
     }
 
     // Connects to the database
@@ -99,11 +101,11 @@ class CSRF
      */
     public function getUserIdFromSession(): int
     {
-        if (!isset($_SESSION[USER_ID_SESSION_KEY]) || !is_int($_SESSION[USER_ID_SESSION_KEY]) || $_SESSION[USER_ID_SESSION_KEY] < 1) {
+        if (!isset($_SESSION[$this->config->userIdSessionKey]) || !is_int($_SESSION[$this->config->userIdSessionKey]) || $_SESSION[$this->config->userIdSessionKey] < 1) {
             throw new \OutOfRangeException("User ID is not found in session or is not valid.");
         }
-        
-        return htmlspecialchars(trim($_SESSION[USER_ID_SESSION_KEY]));
+
+        return htmlspecialchars(trim($_SESSION[$this->config->userIdSessionKey]));
     }
 
     /**
@@ -135,20 +137,20 @@ class CSRF
         if ($this->userId != $tokenFromDb['user_id']) return false;
 
         // Checks token status is valid (this is only if saving status is turned on)
-        if (SAVE_CSRF_STATUS === true) {
+        if ($this->config->saveCsrfStatus === true) {
             if ($tokenFromDb['status'] !== 'valid') return false;
         }
-        
+
         // Check if token is timed out
         if ($this->isTokenTimedOut($tokenFromDb['timestamp'])) {
-            if (SAVE_CSRF_STATUS === true) {
+            if ($this->config->saveCsrfStatus === true) {
                 if ($this->changeTokenStatus($tokenFromDb['id'], 'expired') === false) {
                     throw new \RuntimeException("Failed to update the token status to 'expired'.");
                 };
                 return false;
             }
 
-            if (SAVE_CSRF_STATUS === false) {
+            if ($this->config->saveCsrfStatus === false) {
                 $this->deleteToken('id', $tokenFromDb['id']);
                 return false;
             }
@@ -175,7 +177,7 @@ class CSRF
     // Checks if the token is timed out. Returns true if expired and false if not.
     private function isTokenTimedOut(int $timestamp): bool 
     {
-        return $timestamp + TOKEN_EXPIRATION_TIME <= time();
+        return $timestamp + $this->config->tokenExpirationTime <= time();
     }
 
     /**
@@ -358,10 +360,10 @@ class CSRF
      */
     public function allTokensCleanUp(bool $timestamp = true, ?int $userId = null): bool 
     {
-        $this->getLogger()->logCleanup("Cleanup started by user with ID: " . $_SESSION[USER_ID_SESSION_KEY] . ".");
+        $this->getLogger()->logCleanup("Cleanup started by user with ID: " . $_SESSION[$this->config->userIdSessionKey] . ".");
 
         // Checks if the user has administrative privileges. Access is denied for non-admin users.
-        if (!isset($_SESSION[ROLE_NAME]) || $_SESSION[ROLE_NAME] != ROLE_VALUE) {
+        if (!isset($_SESSION[$this->config->roleName]) || $_SESSION[$this->config->roleName] != $this->config->roleValue) {
             header('HTTP/1.1 403 Forbidden');
             $this->getLogger()->logCleanup("allTokensCleanUp metod error: Unauthorized access attempt.");
             throw new \Exception("You do not have the required permissions.");
@@ -381,13 +383,13 @@ class CSRF
 
         // Cleans up by timestamp
         if ($timestamp === true) {
-            $timeLimit = time() - TOKEN_EXPIRATION_TIME;
+            $timeLimit = time() - $this->config->tokenExpirationTime;
             $query .= "timestamp <= :tl AND ";
             $bindTimestamp = true;
         }
-        
+
         // Cleans up by status (saving status must be enabled)
-        if (SAVE_CSRF_STATUS === true) {
+        if ($this->config->saveCsrfStatus === true) {
             $query .= "status = :st AND ";
             $bindStatus = true;
         }
@@ -436,14 +438,14 @@ class CSRF
         }
 
         // Deletes all time outed tokens
-        if (SAVE_CSRF_STATUS === false) {
+        if ($this->config->saveCsrfStatus === false) {
             $this->deleteToken('id', $expiredTokens);
             $this->getLogger()->logCleanup("Deleted 'expired' tokens.");
             return true;
         }
-        
+
         // Changes status to 'expired' to all time outed tokens with current status 'valid'
-        if (SAVE_CSRF_STATUS === true) {
+        if ($this->config->saveCsrfStatus === true) {
             $this->changeTokenStatus($expiredTokens, 'expired');
             $this->getLogger()->logCleanup("Changed status from 'valid' to 'expired' to all time outed tokens.");
             return true;
@@ -468,7 +470,7 @@ class CSRF
         }
 
         if ($action === 'update') {
-            if (SAVE_CSRF_STATUS !== true) {
+            if ($this->config->saveCsrfStatus !== true) {
                 throw new \LogicException("Saving status is not allowed! Read installation for enabling this feature");
             }
 

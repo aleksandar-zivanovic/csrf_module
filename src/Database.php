@@ -3,25 +3,23 @@ namespace CSRFModule;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'autoload.php';
 
-class Database 
+class Database
 {
     protected $dbh;
-    
-    public function __construct(
-        protected string $user = DB_USER, 
-        protected ?string $password = DB_PASS, 
-        protected string $host = DB_HOST, 
-        protected string $dbName = DB_NAME
-    )
+    protected Config $config;
+
+    public function __construct(?Config $config = null)
     {
-        $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->dbName;
+        $this->config = $config ?? new Config();
+
+        $dsn = "mysql:host=" . $this->config->dbHost . ";dbname=" . $this->config->dbName;
         $options = [
             \PDO::ATTR_PERSISTENT => true,
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
         ];
 
         try {
-            $this->dbh = new \PDO($dsn, $this->user, $this->password, $options);
+            $this->dbh = new \PDO($dsn, $this->config->dbUser, $this->config->dbPass, $options);
         } catch(\PDOException $e) {
             require_once __DIR__ . '/Logger.php';
             $logger = new Logger();

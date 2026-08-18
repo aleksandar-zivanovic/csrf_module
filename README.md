@@ -198,7 +198,7 @@ $_SESSION['role'] = 'admin'; // Assign 'admin' role to an authorized user
 
 ## Configuration
 
-You can configure various aspects of the CSRF module by editing the configuration file located in `modules/csrf_module/config/csrf_config.php`.
+You can configure various aspects of the CSRF module by editing the configuration file located in `config/csrf_config.php`.
 
 - **Indexing Configuration**: Enable or disable indexing for the `status` and `timestamp` columns by setting the following constants in `csrf_config.php`:
 
@@ -209,6 +209,29 @@ const INDEX_BOTH      = false; // Set true to enable indexing for both timestamp
 ```
 
 - **Removing Indexes**: You can remove indexes for the `status` and `timestamp` columns by calling the `removeIndex` method with the appropriate column name(s). See the `Usage` section for more details.
+
+- **Dependency Injection via the `Config` Class**: All module classes (`Database`, `CSRF`, `DatabaseSchemaManager`) accept an optional `Config` object in their constructor. By default (when no `Config` is passed), each class creates its own `Config` instance, which reads its values from the constants defined in `csrf_config.php` — so existing usage (`new CSRF()`, `new DatabaseSchemaManager()`) continues to work without any changes.
+
+    If you need to override settings per instance (for example, in tests or when running multiple configurations in the same process), pass a custom `Config` object instead:
+
+    ```php
+    use CSRFModule\Config;
+    use CSRFModule\Database;
+    use CSRFModule\CSRF;
+
+    $config = new Config(
+        saveCsrfStatus: true,
+        dbUser: 'custom_user',
+        dbPass: 'custom_pass',
+        dbHost: 'custom_host',
+        dbName: 'custom_db',
+    );
+
+    $db = new Database($config);
+    $csrf = new CSRF(db: $db, config: $config);
+    ```
+
+    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`) are optional constructor parameters and can be set individually — any not provided fall back to the corresponding constant from `csrf_config.php`.
 
 ## License
 

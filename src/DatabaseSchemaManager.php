@@ -35,16 +35,19 @@ class DatabaseSchemaManager
 {
     private ?Database $dbInstance = null;
     private ?Logger $logger = null;
-    private array $dbIndexes = [
-        'status' => INDEX_STATUS,
-        'timestamp' => INDEX_TIMESTAMP,
-        'status_timestamp' => INDEX_BOTH,
-    ];
+    private Config $config;
+    private array $dbIndexes;
 
-    public function __construct(?Database $db = null, ?Logger $logger = null)
+    public function __construct(?Database $db = null, ?Logger $logger = null, ?Config $config = null)
     {
         $this->dbInstance = $db;
         $this->logger = $logger;
+        $this->config = $config ?? new Config();
+        $this->dbIndexes = [
+            'status' => $this->config->indexStatus,
+            'timestamp' => $this->config->indexTimestamp,
+            'status_timestamp' => $this->config->indexBoth,
+        ];
 
         if (!$this->isUserAdmin()) {
             throw new \LogicException("Access denied: This class is restricted to admin users.");
@@ -119,7 +122,7 @@ class DatabaseSchemaManager
             user_id INT 
             ";
 
-        if (SAVE_CSRF_STATUS === true) {
+        if ($this->config->saveCsrfStatus === true) {
             $sql .= ", status ENUM('valid', 'used', 'expired') DEFAULT 'valid' ";
         }
 
@@ -175,7 +178,7 @@ class DatabaseSchemaManager
      */
     public function checkIfTableExists(): bool
     {
-        $query = "SHOW TABLES FROM " . DB_NAME . " LIKE 'csrf_tokens'";
+        $query = "SHOW TABLES FROM " . $this->config->dbName . " LIKE 'csrf_tokens'";
 
         try {
             $stmt =  $this->getDb()->getDbh()->prepare($query);
@@ -196,7 +199,7 @@ class DatabaseSchemaManager
      */
     public function addStatusColumn(): bool 
     {
-        if (SAVE_CSRF_STATUS === false) {
+        if ($this->config->saveCsrfStatus === false) {
             throw new \Exception("SAVE_CSRF_STATUS is set to false.");
         }
 
@@ -226,7 +229,7 @@ class DatabaseSchemaManager
      */
     public function removeStatusColumn(): bool 
     {
-        if (SAVE_CSRF_STATUS === true) {
+        if ($this->config->saveCsrfStatus === true) {
             throw new \Exception("SAVE_CSRF_STATUS is set to true.");
         }
 
@@ -254,7 +257,7 @@ class DatabaseSchemaManager
      */
     public function doesColumnStatusExist(): bool 
     {
-        $query = "DESCRIBE " . DB_NAME . ".csrf_tokens";
+        $query = "DESCRIBE " . $this->config->dbName . ".csrf_tokens";
         $stmt = $this->getDb()->getDbh()->query($query);
         $table = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         foreach ($table as $column) {
@@ -436,6 +439,6 @@ class DatabaseSchemaManager
      */
     private function isUserAdmin(): bool 
     {
-        return $_SESSION[ROLE_NAME] ?? null === ROLE_VALUE;
+        return $_SESSION[$this->config->roleName] ?? null === $this->config->roleValue;
     }
 }
