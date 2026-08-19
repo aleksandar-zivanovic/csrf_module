@@ -162,13 +162,12 @@ This will change status of all tokens to 'expired' or remove all tokens associat
 
 ## Cleaning Expired CSRF Tokens
 
-The module provides functionality for cleaning expired CSRF tokens, as well as for cleaning specific user tokens or expired tokens for a specific user from the database. Tokens are considered expired if their timestamp is older than the specified expiration time, calculated as ```time() - TOKEN_EXPIRATION_TIME```. The token lifetime is defined in the `csrf_config.php` file via the `TOKEN_EXPIRATION_TIME` constant. You can start the cleaning process if you have admin privileges by calling the `allTokensCleanUp` method in your application, as shown in the example below:
+The module provides functionality for cleaning all expired CSRF tokens, as well as for cleaning expired tokens for a specific user, from the database. Tokens are considered expired if their timestamp is older than the specified expiration time, calculated as ```time() - TOKEN_EXPIRATION_TIME```. The token lifetime is defined in the `csrf_config.php` file via the `TOKEN_EXPIRATION_TIME` constant. Expired tokens are always deleted from the database. You can start the cleaning process if you have admin privileges by calling the `allTokensCleanUp` method in your application, as shown in the example below:
 
 ```php
-$csrf = new CSRF();                                    // Assuming CSRF class is used
-$csrf->allTokensCleanUp();                             // Cleaning all expired tokens
-$csrf->allTokensCleanUp(timestamp: true, userId: 123); // Cleaning all expired tokens by a specific user
-$csrf->allTokensCleanUp(userId: 123);                  // Cleaning tokens specific user
+$csrf = new CSRF();                    // Assuming CSRF class is used
+$csrf->allTokensCleanUp();             // Cleaning all expired tokens
+$csrf->allTokensCleanUp(userId: 123);  // Cleaning expired tokens for a specific user
 ```
 
 ## Admin Access for Token Cleanup

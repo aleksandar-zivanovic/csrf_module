@@ -1,8 +1,6 @@
 <?php
 namespace CSRFModule;
 
-require_once __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'autoload.php';
-
 class Database
 {
     protected $dbh;

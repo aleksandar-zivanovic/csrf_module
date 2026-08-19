@@ -1,14 +1,6 @@
 <?php
 namespace CSRFModule;
 
-require_once __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'autoload.php';
-
-use CSRFModule\Database;
-use CSRFModule\Logger;
-
-// require_once __DIR__ . '/Database.php';
-// require_once __DIR__ . '/Logger.php';
-
 /**
  * All methods:
  * 
@@ -400,7 +392,7 @@ class DatabaseSchemaManager
      * Implements `checkAllowedColumnsForIndex` method to check if $column value is in allowed range
      * @param string|array $column Column or columns to check for existence inside index.
      * @return bool Returns true if an index exists for the column(s), otherwise false.
-     * @throws Exception If the column value is not allowed.
+     * @throws \Exception If the column value is not allowed.
      */
     public function isIndexOnColumn(string|array $column): bool 
     {
