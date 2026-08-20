@@ -18,7 +18,7 @@ trait AddDatabaseAndLogger
     protected function getDb(): Database
     {
         if ($this->dbInstance === null) {
-            $this->dbInstance = new Database();
+            $this->dbInstance = new Database($this->config, $this->getLogger());
         }
 
         return $this->dbInstance;

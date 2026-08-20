@@ -4,9 +4,8 @@ namespace CSRFModule;
 
 /**
  * All methods:
- * 
- * __construct()
- * getDb(): object                              - connects to Database
+ *
+ * __construct__()
  * closeConnection(): void                      - closes connection to Database
  * closeAndReturn(bool $return)                 - closes connection to Database and returns $return
  * createTable(): bool                          - creates csrf_tokens table in Database
@@ -26,16 +25,13 @@ namespace CSRFModule;
 
 class DatabaseSchemaManager
 {
-    private ?Database $dbInstance = null;
-    private ?Logger $logger = null;
-    private Config $config;
+    use AddDatabaseAndLogger;
+
     private array $dbIndexes;
 
     public function __construct(?Database $db = null, ?Logger $logger = null, ?Config $config = null)
     {
-        $this->dbInstance = $db;
-        $this->logger = $logger;
-        $this->config = $config ?? new Config();
+        $this->initDatabaseIndexAndLogger($db, $logger, $config);
         $this->dbIndexes = [
             'status' => $this->config->indexStatus,
             'timestamp' => $this->config->indexTimestamp,
@@ -45,25 +41,6 @@ class DatabaseSchemaManager
         if (!$this->isUserAdmin()) {
             throw new \LogicException("Access denied: This class is restricted to admin users.");
         }
-    }
-
-    private function getDb(): object
-    {
-        if ($this->dbInstance === null) {
-            $this->dbInstance = new Database();
-        }
-
-        return $this->dbInstance;
-    }
-
-    // Makes instance of Logger class
-    private function getLogger(): object
-    {
-        if ($this->logger === null) {
-            $this->logger = new Logger();
-        }
-
-        return $this->logger;
     }
 
     /**

@@ -58,6 +58,12 @@ class Logger
     /**
      * Logs a database-related error message to 'db_errors.log' file.
      * This method is specifically for logging database connection/query errors.
+     * 
+     * @param string $message
+     * @param array|string|null $errorInfo
+     * @return void
+     * @throws \RuntimeException If failed to write to the log file.
+     * @uses Logger::writeLog()
      */
     public function logDatabaseError(string $message, array|string|null $errorInfo = null): void
     {
