@@ -20,7 +20,7 @@ namespace CSRFModule;
  * filterAllIndexes(): array                    - filters indexes and returns unique index names
  * checkAllowedColumnsForIndex(string|array $column): bool   - checks if parameter for removeIndex is allowed
  * isIndexOnColumn(string|array $column): bool  - checks if there is an index on a column
- * 
+ * isUserAdmin(): bool                          - checks if the current user is admin
  */
 
 class DatabaseSchemaManager
@@ -423,6 +423,6 @@ class DatabaseSchemaManager
      */
     private function isUserAdmin(): bool
     {
-        return $_SESSION[$this->config->roleName] ?? null === $this->config->roleValue;
+        return ($_SESSION[$this->config->roleName] ?? null) === $this->config->roleValue;
     }
 }
