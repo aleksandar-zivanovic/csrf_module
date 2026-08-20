@@ -149,7 +149,6 @@ class DatabaseSchemaManager
         if ($this->checkIfTableExists() == false) {
             $this->getLogger()->logInfo("deleteTable metod error: Table doesn't exist.");
             throw new \RuntimeException("'csrf_tokens' table doesn't exist.");
-            return $this->closeAndReturn(false);
         }
 
         $sql = "DROP TABLE csrf_tokens";
@@ -371,7 +370,7 @@ class DatabaseSchemaManager
      * Checks if column/columns parameter has allowed value.
      * Alowed values: 'status', 'timestamp', ['status', 'timestamp'] and ['timestamp', 'status'].
      * @param string|array $column Value that should be checked.
-     * @throws InvalidArgumentException If $column has a disallowed value.
+     * @throws \InvalidArgumentException If $column has a disallowed value.
      * @return void
      */
     public function checkAllowedColumnsForIndex(string|array $column): void 
@@ -399,9 +398,7 @@ class DatabaseSchemaManager
         $indexKeyNameValues = $this->filterAllIndexes();
 
         // Checks if the $column value is allowed value
-        if ($this->checkAllowedColumnsForIndex($column) === false) {
-            throw new \Exception("The value for \$column parameter is not allowed.");
-        }
+        $this->checkAllowedColumnsForIndex($column);
 
         foreach ($indexKeyNameValues as $value) {
             // Format the column name for comparison
