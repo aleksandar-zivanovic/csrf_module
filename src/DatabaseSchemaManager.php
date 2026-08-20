@@ -1,4 +1,5 @@
 <?php
+
 namespace CSRFModule;
 
 /**
@@ -23,7 +24,7 @@ namespace CSRFModule;
  * 
  */
 
-class DatabaseSchemaManager 
+class DatabaseSchemaManager
 {
     private ?Database $dbInstance = null;
     private ?Logger $logger = null;
@@ -46,7 +47,7 @@ class DatabaseSchemaManager
         }
     }
 
-    private function getDb(): object 
+    private function getDb(): object
     {
         if ($this->dbInstance === null) {
             $this->dbInstance = new Database();
@@ -93,18 +94,20 @@ class DatabaseSchemaManager
      * Creates the `csrf_tokens` table in the database.
      * 
      * This method checks if the table already exists before attempting to create it.
-     * If the table exists, no action is taken, and the method returns `false`.
+     * If the table exists, throws an exception.
      * If the table does not exist, it creates the table with the required structure 
      * and optional columns or indexes based on the configuration constants.
      * 
-     * @return bool Returns `true` if the table was successfully created, 
-     * or `false` if it already exists or the creation failed.
+     * @throws \RuntimeException If the table already exists or the creation fails.
+     * @return true Returns `true` if the table was successfully created.
+     * @uses DatabaseSchemaManager::checkIfTableExists()
      */
-    public function createTable(): bool
+    public function createTable(): true
     {
-        if ($this->checkIfTableExists()) {
-            $this->getLogger()->logInfo("createTable: Table already exists in database.");
-            return $this->closeAndReturn(false);
+        // Check if the table already exists
+        if ($this->checkIfTableExists() === true) {
+            $this->getLogger()->logInfo("createTable method: Table already exists.");
+            throw new \RuntimeException("'csrf_tokens' table already exists.");
         }
 
         $sql = "CREATE TABLE IF NOT EXISTS csrf_tokens (
@@ -123,14 +126,14 @@ class DatabaseSchemaManager
         if ($this->dbIndexes['status_timestamp'] === true) $sql .= ", INDEX idx_status_timestamp (status, timestamp)";
 
         $sql .= ");";
-        
+
         try {
             $this->getDb()->getDbh()->exec($sql);
             $this->getLogger()->logInfo("createTable method success: Table created");
             return $this->closeAndReturn(true);
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("createTable metod error: Creating table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
-            return $this->closeAndReturn(false);
+            throw new \RuntimeException("Creating csrf_tokens table failed.");
         }
     }
 
@@ -138,13 +141,13 @@ class DatabaseSchemaManager
      * Deletes the `csrf_tokens` table from the database.
      * 
      * This method first checks if the table exists in the database. If the table 
-     * does not exist, the method returns `false` without performing any action.
-     * If the table exists, it attempts to delete the table using a `DROP TABLE` query.
-     * 
-     * @return bool Returns `true` if the table was successfully deleted, 
-     * or `false` if the table does not exist or the deletion failed.
+     * does not exist, the method throws a `RuntimeException`. If the table exists, 
+     * it attempts to delete the table using a `DROP TABLE` query.
+     *
+     * @throws \RuntimeException If the table doesn't exist or the deletion fails.
+     * @return true Always returns `true` on success.
      */
-    public function deleteTable(): bool
+    public function deleteTable(): true
     {
         if ($this->checkIfTableExists() == false) {
             $this->getLogger()->logInfo("deleteTable metod error: Table doesn't exist.");
@@ -159,13 +162,16 @@ class DatabaseSchemaManager
             return $this->closeAndReturn(true);
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("deleteTable metod error: Deleting table failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
-            return $this->closeAndReturn(false);
+            throw new \RuntimeException("Deleting csrf_tokens table failed.");
         }
     }
 
     /**
      * Checks if `csrf_tokens` table exists in database. 
      * If the table exists returns `true`, else `false` 
+     * 
+     * @throws \RuntimeException If the query execution fails.
+     * @return bool True if the table exists, false otherwise.
      */
     public function checkIfTableExists(): bool
     {
@@ -186,17 +192,20 @@ class DatabaseSchemaManager
      * Create status column to csrf_tokens table
      * SAVE_CSRF_STATUS must be set to `true` in csrf_config.php
      * Checks if the column exists and SAVE_CSRF_STATUS is set for saving status
-     * @return bool Returns true status column is added, otherwise false.
+     *
+     * @throws \LogicException If SAVE_CSRF_STATUS is set to false.
+     * @throws \RuntimeException If status column already exists or adding status column fails.
+     * @return true Always returns `true` on success.
      */
-    public function addStatusColumn(): bool 
+    public function addStatusColumn(): true
     {
         if ($this->config->saveCsrfStatus === false) {
-            throw new \Exception("SAVE_CSRF_STATUS is set to false.");
+            throw new \LogicException("SAVE_CSRF_STATUS is set to false.");
         }
 
         // Checks if the column already exists
         if ($this->doesColumnStatusExist() === true) {
-            throw new \Exception("`status` column already exists.");
+            throw new \RuntimeException("`status` column already exists.");
         }
 
         $query = "ALTER TABLE csrf_tokens ADD COLUMN status ENUM('valid', 'used', 'expired') DEFAULT 'valid'";
@@ -207,26 +216,28 @@ class DatabaseSchemaManager
             return true;
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("addStatusColumn error: Status column didn't to the table", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new \RuntimeException("Adding status column to csrf_tokens table failed.");
         }
-
-        return false;
     }
 
     /**
      * Removes status column to csrf_tokens table.
      * SAVE_CSRF_STATUS must be set to `false` in csrf_config.php
      * Checks if the column exists and SAVE_CSRF_STATUS is set for saving status.
-     * @return bool Returns true status column is removed, otherwise false.
+     *
+     * @throws \LogicException If SAVE_CSRF_STATUS is set to true.
+     * @throws \RuntimeException If status column doesn't exist or removing status column fails.
+     * @return true Always returns `true` on success.
      */
-    public function removeStatusColumn(): bool 
+    public function removeStatusColumn(): true
     {
         if ($this->config->saveCsrfStatus === true) {
-            throw new \Exception("SAVE_CSRF_STATUS is set to true.");
+            throw new \LogicException("SAVE_CSRF_STATUS is set to true.");
         }
 
         // Checks if the column already exists
         if ($this->doesColumnStatusExist() === false) {
-            throw new \Exception("`status` column doesn't exist.");
+            throw new \RuntimeException("`status` column doesn't exist.");
         }
 
         $query = "ALTER TABLE csrf_tokens DROP COLUMN status";
@@ -237,16 +248,15 @@ class DatabaseSchemaManager
             return true;
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("removeStatusColumn error: Status column isn't removed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new \RuntimeException("Removing status column from csrf_tokens table failed.");
         }
-
-        return false;
     }
 
     /**
      * Checks if status column exists in csrf_tokens table.
      * @return bool Returns true if status column exists, otherwise false.
      */
-    public function doesColumnStatusExist(): bool 
+    public function doesColumnStatusExist(): bool
     {
         $query = "DESCRIBE " . $this->config->dbName . ".csrf_tokens";
         $stmt = $this->getDb()->getDbh()->query($query);
@@ -261,17 +271,18 @@ class DatabaseSchemaManager
 
     /**
      * Creates an index on a specific column(s) of the `csrf_tokens` table.
-     * If an index already exists for the column(s), returns false.
+     * If an index already exists for the column(s), throws a RuntimeException.
      * If the index is successfully created, returns true.
      * @param string|array $column The column(s) on which the index should be created.
-     * @return bool Returns true if the index was successfully created, false if it already exists or on error.
+     *
+     * @throws \RuntimeException If the index already exists or if the index creation fails.
+     * @return true Always returns `true` on success.
      */
-    public function addIndex(string|array $column): bool  
+    public function addIndex(string|array $column): true
     {
         // Checks if the column(s) is already indexed
         if ($this->isIndexOnColumn($column) === true) {
-            $this->getLogger()->logInfo("addIndex error: Index already exists.");
-            return false;
+            throw new \RuntimeException("Index already exists for column(s): " . (is_array($column) ? implode(", ", $column) : $column));
         }
 
         $sql = "CREATE INDEX idx_";
@@ -289,7 +300,7 @@ class DatabaseSchemaManager
         }
 
         if ($column === 'timestamp') {
-            $sql .= "timestamp ON csrf_tokens (status)";
+            $sql .= "timestamp ON csrf_tokens (timestamp)";
         }
 
         try {
@@ -298,33 +309,40 @@ class DatabaseSchemaManager
             return true;
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("addIndex error: Adding index for column" . $errorMsgColumns . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
-            return false;
+            throw new \RuntimeException("Adding index for column" . $errorMsgColumns . " failed.");
         }
     }
 
     /**
      * Removes index from csrf_token table.
-     * If index doesn't exists returns false.
-     * Logs result of removing index and return true on success and false on failure
+     * If index doesn't exists throws an exception.
+     * Logs result of removing index action.
+     * 
      * @param string|array $column Column(s) for adding index on
-     * @return bool Returns true for success, otherwise false
+     * @throws \InvalidArgumentException If $column has a disallowed value.
+     * @throws \RuntimeException If the index does not exist.
+     * @return true Always returns `true` on success.
+     * @uses DatabaseSchemaManager::checkAllowedColumnsForIndex()
+     * @uses DatabaseSchemaManager::filterAllIndexes()
      */
-    public function removeIndex(string|array $column): bool 
+    public function removeIndex(string|array $column): true
     {
         // Checks if parameter $column is allowed value
         $this->checkAllowedColumnsForIndex($column);
-        
+
         // Makes qualified name of the new index
         $indexName = is_array($column) ? "idx_status_timestamp" : "idx_" . $column;
 
         // Gets all avaiable index names
         $allIndexes = $this->filterAllIndexes();
 
-        // Checks if the index name already exists and returns false if exists
-        if (!in_array($indexName, $allIndexes)) return false;
+        // Checks if the index name already exists
+        if (!in_array($indexName, $allIndexes)) {
+            throw new \RuntimeException("Index does not exist for column(s): " . (is_array($column) ? implode(", ", $column) : $column));
+        }
 
         $sql = "DROP INDEX {$indexName} ON csrf_tokens";
-        
+
         try {
             $stmt = $this->getDb()->getDbh()->prepare($sql);
             $stmt->execute();
@@ -332,7 +350,7 @@ class DatabaseSchemaManager
             return true;
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("removeIndex error: Removing index " . $indexName . " failed", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
-            return false;
+            throw new \RuntimeException("Removing index " . $indexName . " failed.");
         }
     }
 
@@ -360,7 +378,7 @@ class DatabaseSchemaManager
      * Removes duplicate values and returns an array of unique index names.
      * @return array Returns an array of unique values for index 'Key_name' column.
      */
-    public function filterAllIndexes(): array 
+    public function filterAllIndexes(): array
     {
         $indexesDetails = $this->findAllIndexes();
         return array_unique(array_column($indexesDetails, 'Key_name'));
@@ -373,7 +391,7 @@ class DatabaseSchemaManager
      * @throws \InvalidArgumentException If $column has a disallowed value.
      * @return void
      */
-    public function checkAllowedColumnsForIndex(string|array $column): void 
+    public function checkAllowedColumnsForIndex(string|array $column): void
     {
         $allowedArrays = [['status', 'timestamp'], ['timestamp', 'status']];
         $allowedStrings = ['status', 'timestamp'];
@@ -381,7 +399,7 @@ class DatabaseSchemaManager
             if (!in_array($column, $allowedArrays, true)) {
                 throw new \InvalidArgumentException("Invalid column array. Allowed values are ['status', 'timestamp'] or ['timestamp', 'status'].");
             }
-        }elseif (!in_array($column, $allowedStrings, true)) {
+        } elseif (!in_array($column, $allowedStrings, true)) {
             throw new \InvalidArgumentException("Invalid column value. Allowed values are 'status' and 'timestamp'.");
         }
     }
@@ -393,7 +411,7 @@ class DatabaseSchemaManager
      * @return bool Returns true if an index exists for the column(s), otherwise false.
      * @throws \Exception If the column value is not allowed.
      */
-    public function isIndexOnColumn(string|array $column): bool 
+    public function isIndexOnColumn(string|array $column): bool
     {
         $indexKeyNameValues = $this->filterAllIndexes();
 
@@ -426,7 +444,7 @@ class DatabaseSchemaManager
      * values of $_SESSION[ROLE_NAME] and ROLE_VALUE.
      * @return bool Returns true if user is an Admin, otherwise false
      */
-    private function isUserAdmin(): bool 
+    private function isUserAdmin(): bool
     {
         return $_SESSION[$this->config->roleName] ?? null === $this->config->roleValue;
     }

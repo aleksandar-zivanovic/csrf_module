@@ -186,8 +186,10 @@ if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
 ```php
 $manager = new DatabaseSchemaManager();
 $manager->addIndex('status'); // Creates index for the 'status' column
-$manager->addIndex(['status', 'timestamp']); // Creates index for both 'status' and 'timestamp' columns
+$manager->addIndex(['status', 'timestamp']); // Creates a single combined index (idx_status_timestamp) on 'status' and 'timestamp'
 ```
+
+**Note**: `$manager->addIndex(['status', 'timestamp'])` creates a single combined (composite) index over both columns, not two separate indexes. This speeds up `allTokensCleanUp()`, which filters by both `status` (equality) and `timestamp` (range) at once. It does not help queries that filter only by `timestamp` - a separate index on `timestamp` alone is still needed for that. Also, enabling both `INDEX_STATUS` and `INDEX_BOTH` at the same time is redundant, since the combined index already covers lookups by `status` alone.
 
 The method will log an error if the index already exists and return `false`. If the index is successfully created, it will return `true`.
 

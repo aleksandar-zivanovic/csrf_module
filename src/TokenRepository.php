@@ -135,6 +135,7 @@ class TokenRepository
      * @param string $status The new status to set.
      * @throws \LengthException If the $id parameter is empty.
      * @throws \InvalidArgumentException If the $status parameter is invalid.
+     * @throws \RuntimeException If the database query fails.
      * @return bool Returns true on success, false on failure.
      * @see CSRF::changeTokenStatus()
      */
@@ -183,7 +184,7 @@ class TokenRepository
                 "message" => $e->getMessage(),
                 'code' => $e->getCode()
             ]);
-            return false;
+            throw new \RuntimeException("Updating token status in database failed.");
         }
 
         // Returns true if token status is changed
@@ -217,14 +218,11 @@ class TokenRepository
         try {
             $stmt = $db->getDbh()->prepare($query);
             $stmt->execute();
-            if ($stmt->rowCount() < 1) {
-                $this->getLogger()->logInfo("delete() method error:  rowCount() < 1");
-                return false;
-            }
-            return true;
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("delete() method error: execution() failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
-            return false;
+            throw new \RuntimeException("Deleting token from the database failed.");
         }
+
+        return $stmt->rowCount() > 0;
     }
 }

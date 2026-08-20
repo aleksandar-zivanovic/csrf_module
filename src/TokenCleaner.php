@@ -21,10 +21,12 @@ class TokenCleaner
      * 
      * @param int|null $userId If provided, tokens belonging to the specified user will be processed.
      * 
-     * @throws \Exception If the user does not have administrative privileges.
+     * @throws \LogicException If the user does not have administrative privileges.
      * @throws \InvalidArgumentException If the userId is invalid.
-     * @return bool Returns true if any token was processed (deleted or updated), false if no tokens were found.
-     * @see CSRF::allTokensCleanUp
+     * @throws \RuntimeException If an unexpected error occurs during the cleanup process.
+     * @return bool Returns true if any token was deleted or false if no tokens were found.
+     * @see CSRF::allTokensCleanUp()
+     * @uses TokenRepository::delete()
      */
     public function cleanUpAll(?int $userId = null): bool
     {
@@ -34,7 +36,7 @@ class TokenCleaner
         if (!isset($_SESSION[$this->config->roleName]) || $_SESSION[$this->config->roleName] != $this->config->roleValue) {
             header('HTTP/1.1 403 Forbidden');
             $this->getLogger()->logCleanup("cleanUpAll metod error: Unauthorized access attempt.");
-            throw new \Exception("You do not have the required permissions.");
+            throw new \LogicException("You do not have the required permissions.");
         }
 
         // Conditions used for filtering tokens for cleanup
@@ -72,19 +74,27 @@ class TokenCleaner
         }
 
         // Something unpredicted happened
-        $this->getLogger()->logCleanup("Something unpredicted happened!");
-        return false;
+        $this->getLogger()->logCleanup("TokenCleaner::cleanUpAll(). Something unpredicted happened!");
+        throw new \RuntimeException("TokenCleaner::cleanUpAll(). Something unpredicted happened!");
     }
 
     /**
      * Canceling user's token(s) during logout process, by deleting them or changing status to `expired`.
+     * 
      * @param string $action Action 'delete' or 'update' depending what action you want to perform.
+     * @throws \InvalidArgumentException If the action is not valid.
+     * @throws \LogicException If saving status is not allowed.
      * @return bool Returns true if action is done or there are no tokens, otherwise false.
+     * @uses TokenRepository::delete()
+     * @uses TokenRepository::fetchTokenWithData()
+     * @uses TokenRepository::changeStatus()
      * @see CSRF::logoutTokensCleanup()
      */
     public function logoutCleanUp(string $action): bool
     {
-        if (!in_array($action, ['delete', 'update'])) return false;
+        if (!in_array($action, ['delete', 'update'])) {
+            throw new \InvalidArgumentException("Invalid action. Allowed values are 'delete' or 'update'.");
+        }
 
         if ($action === 'delete') {
             return $this->repository->delete('user_id', $this->getUserIdFromSession());
