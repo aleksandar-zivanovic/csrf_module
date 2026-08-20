@@ -31,13 +31,45 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
     composer require aleksandarz/csrfmodule
     ```
 
-    This will automatically add the module to your project.
+    This will automatically add the module to your project. Include Composer's autoloader in your script:
+
+    ```php
+    require 'vendor/autoload.php';
+    ```
+
+    **Note**: Add this line near the top of your application's entry script (e.g. `index.php` or a bootstrap file), before any use of the module's classes.
 
     - **Manual Installation (Download from GitHub)**
 
-    Alternatively, you can download the module manually from GitHub and place it in your project’s modules directory.
+    Alternatively, you can download the module manually from GitHub and place it in your project's modules directory. Include the module's autoloader in your script:
 
-2. Database Setup. Code for creating the table will be handled by the `createTable` method inside `DatabaseSchemaManager` class. Table configuration is set in `config/csrf_config.php`.
+    ```php
+    require_once 'autoload.php';
+    ```
+
+    **Note**: Add this line near the top of your application's entry script (e.g. `index.php` or a bootstrap file), before any use of the module's classes.
+
+    ***Mandatory for both installations:*** Import the module's classes you use. All classes live under the `CSRFModule` namespace. Wherever you work with the database schema use:
+
+    ```php
+    use CSRFModule\DatabaseSchemaManager;
+    ```
+
+    and wherever you work with tokens use:
+
+    ```php
+    use CSRFModule\CSRF;
+    ```
+
+2. Make sure a PHP session is active. Call `session_start();` at the top of your application's entry script, before using any module functionality.
+
+3. Configuration: Rename the file `config/csrf_config.example.php` to `config/csrf_config.php`.
+
+4. Configure database credentials: Open `config/csrf_config.php` and configure your database settings. Update the `DB_USER`, `DB_PASS`, `DB_HOST`, and `DB_NAME` constants to match your existing database.
+
+5. Create the database table. Code for creating the table will be handled by the `createTable` method inside `DatabaseSchemaManager` class. Table configuration is set in `config/csrf_config.php`.
+
+    **Note**: `DatabaseSchemaManager` requires an admin session - see [Admin Session Setup](#admin-session-setup).
 
     If the `SAVE_CSRF_STATUS` constant is set to `true`, the `status` column will be included. If set to `false`, the column will be omitted.
 
@@ -66,10 +98,6 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
     The result of calling either method will be logged in the `csrf_module\logs\general.log` file.
     **Note**: Deleting the table is irreversible and should only be done if you are sure it is no longer needed.
 
-3. Configuration: Rename the file `config/csrf_config.example.php` to `config/csrf_config.php`.
-
-4. Database Setup: Open `config/csrf_config.php` and configure your database settings. Update the `DB_USER`, `DB_PASS`, `DB_HOST`, and `DB_NAME` constants with your database credentials.
-
 ## Error Logging
 
 The system logs errors into different log files inside `logs` direcotry based on the type of action:
@@ -80,11 +108,38 @@ The system logs errors into different log files inside `logs` direcotry based on
 
 The result of actions like table creation, deletion, or cleanup will be logged in the appropriate log file. If the `logs` directory doesn't exist it will be created automatically if needed.
 
+## Admin Session Setup
+
+Some module operations are restricted to users with administrator privileges. This is enforced by checking a session key against a required value, both defined in `csrf_config.php`:
+
+```php
+const ROLE_NAME = 'role'; // Session key for user role
+const ROLE_VALUE = 'admin'; // Role value required for access
+```
+
+Example: `$_SESSION['role']` should have value `'admin'` to grant access.
+
+Before calling any restricted method, set the session role to match your configured admin value:
+
+```php
+$_SESSION['role'] = 'admin';
+```
+
+The following operations require an admin session:
+
+- `DatabaseSchemaManager` - any method (`createTable`, `deleteTable`, `addStatusColumn`, `removeStatusColumn`, `addIndex`, `removeIndex`), enforced in the constructor.
+- `CSRF::allTokensCleanUp` - see [Cleaning Expired CSRF Tokens](#cleaning-expired-csrf-tokens).
+
+Ensure that:
+
+- The `ROLE_NAME` constant matches the session key used in your application for user roles.
+- The `ROLE_VALUE` constant matches the role value assigned to administrators.
+
 ## Usage
 
 - ### Session Requirements for User ID
 
-The module requires a valid session key for the current user’s ID. The default session key is set to `'user_id'` but can be customized in `config/csrf_config.php`. If this session key is missing or invalid, the module will stop execution and display an error.
+The module requires a valid session key for the current user's ID. The default session key is set to `'user_id'` but can be customized in `config/csrf_config.php`. If this session key is missing or invalid, the module will stop execution and display an error.
 
 Make sure to:
     Set the `USER_ID_SESSION_KEY` constant in `csrf_config.php` to match your application's session key.
@@ -101,6 +156,8 @@ if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
 ```
 
 - ### Adding and Removing `status` column to/from `csrf_token` table
+
+**Note**: `DatabaseSchemaManager` requires an admin session - see [Admin Session Setup](#admin-session-setup).
 
 - **Adding** `status` column:
     1. Set `SAVE_CSRF_STATUS` constant in `csrf_config.php` to `true`
@@ -122,12 +179,14 @@ if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
 
 - ### Creating and Removing Indexes for Columns
 
+**Note**: `DatabaseSchemaManager` requires an admin session - see [Admin Session Setup](#admin-session-setup).
+
 - To create an index on specific columns (`status`, `timestamp`, or both), use the `addIndex` method:
 
 ```php
-$csrf = new CSRF(); // Assuming CSRF class is used
-$csrf->addIndex('status'); // Creates index for the 'status' column
-$csrf->addIndex(['status', 'timestamp']); // Creates index for both 'status' and 'timestamp' columns
+$manager = new DatabaseSchemaManager();
+$manager->addIndex('status'); // Creates index for the 'status' column
+$manager->addIndex(['status', 'timestamp']); // Creates index for both 'status' and 'timestamp' columns
 ```
 
 The method will log an error if the index already exists and return `false`. If the index is successfully created, it will return `true`.
@@ -135,9 +194,9 @@ The method will log an error if the index already exists and return `false`. If 
 - To remove an index from specific columns (`status`, `timestamp`, or both), use the `removeIndex` method:
 
 ```php
-$csrf = new CSRF(); // Assuming CSRF class is used
-$csrf->removeIndex('status'); // Removes index for the 'status' column
-$csrf->removeIndex(['status', 'timestamp']); // Removes index for both 'status' and 'timestamp' columns
+$manager = new DatabaseSchemaManager();
+$manager->removeIndex('status'); // Removes index for the 'status' column
+$manager->removeIndex(['status', 'timestamp']); // Removes index for both 'status' and 'timestamp' columns
 ```
 
 - ### Cleaning Token During User Logout
@@ -148,7 +207,7 @@ When a user logs out, it is recommended to delete all user's tokens or change st
 
 ```php
 $csrf = new CSRF();
-$csrf-logoutTokensCleanup('delete'); // when you want to delete
+$csrf->logoutTokensCleanup('delete'); // when you want to delete
 ```
 
 - changing token status to 'expired':
@@ -170,30 +229,12 @@ $csrf->allTokensCleanUp();             // Cleaning all expired tokens
 $csrf->allTokensCleanUp(userId: 123);  // Cleaning expired tokens for a specific user
 ```
 
-## Admin Access for Token Cleanup
+The `allTokensCleanUp` method is restricted to users with administrator privileges - see [Admin Session Setup](#admin-session-setup) for how to configure and set the required session role.
 
-The `allTokensCleanUp` method is restricted to users with administrator privileges. This restriction is enforced using session data, and the role configuration is defined in the `csrf_config.php` file through the following constants:
-
-```php
-const ROLE_NAME = 'role'; // Session key for user role
-const ROLE_VALUE = 'admin'; // Role value required for access
-```
-
-When the method is called, it verifies the session data to ensure the user has the required role. If the validation fails, the method:
+If the validation fails, the method:
 
 1. Logs an error indicating unauthorized access.
 2. Returns a message to the user indicating insufficient permissions.
-
-Ensure that:
-
-- The ROLE_NAME constant matches the session key used in your application for user roles.
-- The ROLE_VALUE constant matches the role value assigned to administrators.
-
-Example of session configuration in your application:
-
-```php
-$_SESSION['role'] = 'admin'; // Assign 'admin' role to an authorized user
-```
 
 ## Configuration
 
@@ -209,7 +250,7 @@ const INDEX_BOTH      = false; // Set true to enable indexing for both timestamp
 
 - **Removing Indexes**: You can remove indexes for the `status` and `timestamp` columns by calling the `removeIndex` method with the appropriate column name(s). See the `Usage` section for more details.
 
-- **Dependency Injection via the `Config` Class**: All module classes (`Database`, `CSRF`, `DatabaseSchemaManager`) accept an optional `Config` object in their constructor. By default (when no `Config` is passed), each class creates its own `Config` instance, which reads its values from the constants defined in `csrf_config.php` — so existing usage (`new CSRF()`, `new DatabaseSchemaManager()`) continues to work without any changes.
+- **Dependency Injection via the `Config` Class**: All module classes (`Database`, `CSRF`, `DatabaseSchemaManager`) accept an optional `Config` object in their constructor. By default (when no `Config` is passed), each class creates its own `Config` instance, which reads its values from the constants defined in `csrf_config.php` - so existing usage (`new CSRF()`, `new DatabaseSchemaManager()`) continues to work without any changes.
 
     If you need to override settings per instance (for example, in tests or when running multiple configurations in the same process), pass a custom `Config` object instead:
 
@@ -230,7 +271,7 @@ const INDEX_BOTH      = false; // Set true to enable indexing for both timestamp
     $csrf = new CSRF(db: $db, config: $config);
     ```
 
-    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`) are optional constructor parameters and can be set individually — any not provided fall back to the corresponding constant from `csrf_config.php`.
+    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`) are optional constructor parameters and can be set individually - any not provided fall back to the corresponding constant from `csrf_config.php`.
 
 ## License
 
