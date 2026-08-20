@@ -48,6 +48,7 @@ class TokenValidator
      * Function checks if the token is valid for use. It checks if: 
      * - token from session is in valid format, 
      * - token from session exists in database, 
+     * - the token belongs to the current user,
      * - token in database has status 'valid', 
      * - token token is expired.
      * Function returns true if the token is valid and false if is invalid
