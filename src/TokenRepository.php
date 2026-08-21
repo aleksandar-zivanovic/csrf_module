@@ -240,7 +240,7 @@ class TokenRepository
 
             // If $column is "token", check if the token from the session matches the $value
             if ($column === "token") {
-                if ($this->getTokenFromSession() !== $value) {
+                if (!hash_equals($this->getTokenFromSession(), (string)$value)) {
                     throw new \LogicException("Access denied: This action is restricted to admin users.");
                 }
             }
