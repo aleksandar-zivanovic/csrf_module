@@ -30,14 +30,15 @@ class TokenValidator
     }
 
     /**
-     * Function checks if the token is valid for use. It checks if: 
+     * Function checks if the token is valid for use and change status upon use.
+     * It checks if: 
      * - token from session is in valid format, 
      * - token from session exists in database, 
      * - the token belongs to the current user,
      * - token in database has status 'valid', 
      * - token token is expired.
      * Function returns true if the token is valid and false if is invalid
-     * @throws \RuntimeException If updating the token status to 'expired' fails.
+     * @throws \RuntimeException If updating the token status fails.
      * @see CSRF::tokenValidation()
      */
     public function validation(): bool
@@ -84,6 +85,13 @@ class TokenValidator
             if ($this->config->saveCsrfStatus === false) {
                 $this->repository->delete('token', $tokenFromDb['token']);
                 return false;
+            }
+        }
+
+        // Changes token status to 'used', after using it, if saving status is turned on
+        if ($this->config->saveCsrfStatus === true) {
+            if ($this->repository->changeStatus($tokenFromDb['id'], 'used') === false) {
+                throw new \RuntimeException("Failed to update the token status to 'used'.");
             }
         }
 
