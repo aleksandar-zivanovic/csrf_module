@@ -147,21 +147,31 @@ Make sure to:
 
 - ### Validating CSRF Token
 
-To validate a token submitted via a form, compare the token in the session with the one sent with the request:
+To validate a token submitted via a form, use the `tokenValidation` method. It checks that the token exists in the database, belongs to the current user, has not expired, and (if saving token status is enabled - `SAVE_CSRF_STATUS === true` in the config file) has not already been used:
 
 ```php
-if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
-    // Handle CSRF attack
+$csrf = new CSRF();
+
+if (!$csrf->tokenValidation()) {
+    // Handle invalid or missing CSRF token
 }
 ```
+
+If the token has expired: when saving status is enabled, the token's status is changed to expired; when it is disabled, the expired token is deleted from the database instead.
 
 - ### Adding and Removing `status` column to/from `csrf_token` table
 
 **Note**: `DatabaseSchemaManager` requires an admin session - see [Admin Session Setup](#admin-session-setup).
 
 - **Adding** `status` column:
-    1. Set `SAVE_CSRF_STATUS` constant in `csrf_config.php` to `true`
-    2. Call `addStatusColumn` method
+
+    **1.** Set `SAVE_CSRF_STATUS` constant in `csrf_config.php` to `true`
+
+    ```php
+    const SAVE_CSRF_STATUS = true;
+    ```
+
+    **2.** Call `addStatusColumn` method
 
     ```php
     $manager = new DatabaseSchemaManager();
@@ -169,8 +179,14 @@ if ($_POST['csrf_token'] !== $_SESSION['csrf_token']) {
     ```
 
 - **Removing** `status` column:
-    1. Set `SAVE_CSRF_STATUS` constant in `csrf_config.php` to `false`
-    2. Call `removeStatusColumn` method:
+
+    **1.** Set `SAVE_CSRF_STATUS` constant in `csrf_config.php` to `false`
+
+    ```php
+    const SAVE_CSRF_STATUS = false;
+    ```
+
+    **2.** Call `removeStatusColumn` method:
 
     ```php
     $manager = new DatabaseSchemaManager();

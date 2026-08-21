@@ -6,6 +6,7 @@ class TokenValidator
 {
     use AddDatabaseAndLogger;
     use GetUserIdFromSession;
+    use GetTokenFromSession;
 
     private ?TokenRepository $repository = null;
     private string $csrfToken;
@@ -29,22 +30,6 @@ class TokenValidator
     }
 
     /**
-     * Gets token from session. If there is token in session, 
-     * function returns string, else returns null
-     * @return string|null The CSRF token from the session, or null if not set or invalid.
-     * @see CSRF::generateAndSaveCsrfToken()
-     */
-    private function gettingTokenFromSession(): ?string
-    {
-        if (isset($_SESSION['csrf_token']) && !empty($_SESSION['csrf_token'])) {
-            $token = $_SESSION['csrf_token'];
-            return preg_match('/^[a-f0-9]{64}$/', $token) ? $token : null;
-        } else {
-            return null;
-        }
-    }
-
-    /**
      * Function checks if the token is valid for use. It checks if: 
      * - token from session is in valid format, 
      * - token from session exists in database, 
@@ -57,14 +42,12 @@ class TokenValidator
      */
     public function validation(): bool
     {
-        // Gets value of the token from session. 
-        // gettingTokenFromSession() returns null if the token isn't set in session or is in a wrong format 
-        $tokenFromSession = $this->gettingTokenFromSession();
-        if ($tokenFromSession == null) return false;
-        $this->csrfToken = $tokenFromSession;
-
-        // Checks if a token is set in session
-        if (empty($this->csrfToken)) return false;
+        // Gets value of the token from session.
+        try {
+            $this->csrfToken = $this->getTokenFromSession();
+        } catch (\OutOfRangeException $th) {
+            return false;
+        }
 
         // Fetches token data from the database
         $conditions = [['column' => 'token', 'operator' => '=', 'value' => $this->csrfToken]];
@@ -76,9 +59,13 @@ class TokenValidator
         // Gets the first and only token record from the result that is a multidimensional array
         $tokenFromDb = $result[0];
 
+        try {
+            $this->userId = $this->getUserIdFromSession();
+        } catch (\OutOfRangeException $th) {
+            return false;
+        }
         // Compare user's ID from session and from the database
-        $this->userId = $this->getUserIdFromSession();
-        if ($this->userId != $tokenFromDb['user_id']) return false;
+        if ($this->userId !== $tokenFromDb['user_id']) return false;
 
         // Checks token status is valid (this is only if saving status is turned on)
         if ($this->config->saveCsrfStatus === true) {
@@ -95,7 +82,7 @@ class TokenValidator
             }
 
             if ($this->config->saveCsrfStatus === false) {
-                $this->repository->delete('id', $tokenFromDb['id']);
+                $this->repository->delete('token', $tokenFromDb['token']);
                 return false;
             }
         }

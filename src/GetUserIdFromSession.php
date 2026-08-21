@@ -21,6 +21,6 @@ trait GetUserIdFromSession
             throw new \OutOfRangeException("User ID is not found in session or is not valid.");
         }
 
-        return htmlspecialchars(trim($_SESSION[$this->config->userIdSessionKey]));
+        return $_SESSION[$this->config->userIdSessionKey];
     }
 }

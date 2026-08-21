@@ -6,6 +6,8 @@ class TokenRepository
 {
     use AddDatabaseAndLogger;
     use IsUserAdmin;
+    use GetTokenFromSession;
+    use GetUserIdFromSession;
 
     private array $allowedStatuses = ['valid', 'expired', 'used'];
 
@@ -207,7 +209,8 @@ class TokenRepository
      *
      * @param string $column The name of a database's column to match against.
      * @param string|int|array $value The value(s) to match for deletion.
-     * @throws \LogicException If the user is not an admin.
+     * @throws \LogicException If the user is not an admin and the action is restricted to non-admin users.
+     * @throws \OutOfRangeException If there is no CSRF token in the session or it has an invalid format.
      * @throws \InvalidArgumentException If the $column is invalid or $value empty.
      * @throws \RuntimeException If the database query fails.
      * @return bool Returns true on success, false on failure.
@@ -215,23 +218,46 @@ class TokenRepository
      */
     public function delete(string $column, string|int|array $value): bool
     {
-        // Check if user is an administrator
+        // Checks if the user is an admin. If not, validate the action based on the provided column and value.
         if ($this->isUserAdmin() === false) {
-            throw new \LogicException("Access denied: This action is restricted to admin users.");
+
+            // Checks if the value is an array
+            if (is_array($value)) {
+                throw new \LogicException("Access denied: This action is restricted to admin users.");
+            }
+
+            // Allows deletion only if the $column is "token"
+            if ($column !== "token" && $column !== "user_id") {
+                throw new \LogicException("Access denied: This action is restricted to admin users.");
+            }
+
+            // If $column is "user_id", check if the user ID from the session matches the $value
+            if ($column === "user_id") {
+                if ($this->getUserIdFromSession() !== $value) {
+                    throw new \LogicException("Access denied: This action is restricted to admin users.");
+                }
+            }
+
+            // If $column is "token", check if the token from the session matches the $value
+            if ($column === "token") {
+                if ($this->getTokenFromSession() !== $value) {
+                    throw new \LogicException("Access denied: This action is restricted to admin users.");
+                }
+            }
         }
 
-        // Check for allowed columns
+        // Checks for allowed columns
         $allowedColumns = ['id', 'token', 'timestamp', 'user_id', 'status'];
         if (!in_array($column, $allowedColumns)) {
             throw new \InvalidArgumentException("Invalid column name.");
         }
 
-        // Check for empty value
+        // Checks for empty value
         if (is_string($value) && trim($value) === "" || is_array($value) && empty($value)) {
             throw new \InvalidArgumentException("Value parameter must not be empty.");
         }
 
-        // Check for associative array
+        // Checks for associative array
         if (is_array($value) && array_keys($value) !== range(0, count($value) - 1)) {
             throw new \InvalidArgumentException("Value array must be a sequential list, not associative.");
         }
@@ -275,6 +301,8 @@ class TokenRepository
             $this->getLogger()->logDatabaseError("delete() method error: execution() failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new \RuntimeException("Deleting token from the database failed.");
         }
+
+        unset($_SESSION["csrf_token"]);
 
         return $stmt->rowCount() > 0;
     }
