@@ -5,6 +5,7 @@ namespace CSRFModule;
 class TokenRepository
 {
     use AddDatabaseAndLogger;
+    use IsUserAdmin;
 
     private array $allowedStatuses = ['valid', 'expired', 'used'];
 
@@ -134,7 +135,7 @@ class TokenRepository
      * @param string|array $id The ID(s) of the token(s) to update.
      * @param string $status The new status to set.
      * @throws \LengthException If the $id parameter is empty.
-     * @throws \InvalidArgumentException If the $status parameter is invalid.
+     * @throws \InvalidArgumentException If the $status parameter is invalid or $id is associative array.
      * @throws \RuntimeException If the database query fails.
      * @return bool Returns true on success, false on failure.
      * @see CSRF::changeTokenStatus()
@@ -149,12 +150,18 @@ class TokenRepository
             throw new \InvalidArgumentException("Invalid argument value for status parameter.");
         }
 
+        if (is_array($id) && array_keys($id) !== range(0, count($id) - 1)) {
+            throw new \InvalidArgumentException("ID array must be a sequential list, not associative.");
+        }
+
         $query = "UPDATE csrf_tokens SET status = :st WHERE ";
 
         if (is_array($id)) {
+            $i = 0;
             $placeholders = [];
-            foreach ($id as $key => $value) {
-                $placeholders[] = ":id{$key}";
+            foreach ($id as $value) {
+                $placeholders[] = ":id{$i}";
+                $i++;
             }
 
             $query .= " id IN (" . implode(", ", $placeholders) . ")";
@@ -168,8 +175,10 @@ class TokenRepository
             $stmt = $this->getDb()->getDbh()->prepare($query);
 
             if (is_array($id)) {
-                foreach ($id as $key => $value) {
-                    $stmt->bindValue(":id{$key}", $value, \PDO::PARAM_INT);
+                $i = 0;
+                foreach ($id as $value) {
+                    $stmt->bindValue(":id{$i}", $value, \PDO::PARAM_INT);
+                    $i++;
                 }
             }
 
@@ -198,25 +207,69 @@ class TokenRepository
      *
      * @param string $column The name of a database's column to match against.
      * @param string|int|array $value The value(s) to match for deletion.
+     * @throws \LogicException If the user is not an admin.
+     * @throws \InvalidArgumentException If the $column is invalid or $value empty.
+     * @throws \RuntimeException If the database query fails.
      * @return bool Returns true on success, false on failure.
      * @see CSRF::deleteToken()
      */
     public function delete(string $column, string|int|array $value): bool
     {
+        // Check if user is an administrator
+        if ($this->isUserAdmin() === false) {
+            throw new \LogicException("Access denied: This action is restricted to admin users.");
+        }
+
+        // Check for allowed columns
+        $allowedColumns = ['id', 'token', 'timestamp', 'user_id', 'status'];
+        if (!in_array($column, $allowedColumns)) {
+            throw new \InvalidArgumentException("Invalid column name.");
+        }
+
+        // Check for empty value
+        if (is_string($value) && trim($value) === "" || is_array($value) && empty($value)) {
+            throw new \InvalidArgumentException("Value parameter must not be empty.");
+        }
+
+        // Check for associative array
+        if (is_array($value) && array_keys($value) !== range(0, count($value) - 1)) {
+            throw new \InvalidArgumentException("Value array must be a sequential list, not associative.");
+        }
+
         $db = $this->getDb();
         $query = "DELETE FROM csrf_tokens WHERE {$column} ";
 
         if (is_array($value)) {
-            $stringOfValues = implode(", ", $value);
-            $query .= "IN ($stringOfValues)";
+            $placeholders = [];
+            $i = 0;
+            foreach ($value as $_) {
+                $placeholders[] = ":{$column}_{$i}";
+                $i++;
+            }
+
+            $query .= "IN (" . implode(", ", $placeholders) . ")";
         }
 
         if (is_string($value) || is_int($value)) {
-            $query .= "= " . $value;
+            $query .= "= " . ":{$column}_0";
+            $value = [$value];
         }
 
         try {
             $stmt = $db->getDbh()->prepare($query);
+
+            $i = 0;
+            foreach ($value as $singleValue) {
+                if ($column === 'token' || $column === 'status') {
+                    $stmt->bindValue(":{$column}_{$i}", $singleValue, \PDO::PARAM_STR);
+                }
+
+                if ($column === 'id' || $column === 'timestamp' || $column === 'user_id') {
+                    $stmt->bindValue(":{$column}_{$i}", $singleValue, \PDO::PARAM_INT);
+                }
+                $i++;
+            }
+
             $stmt->execute();
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("delete() method error: execution() failed.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
