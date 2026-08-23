@@ -108,6 +108,12 @@ The system logs errors into different log files inside `logs` direcotry based on
 
 The result of actions like table creation, deletion, or cleanup will be logged in the appropriate log file. If the `logs` directory doesn't exist it will be created automatically if needed.
 
+## Handling Uncaught Exceptions
+
+Since this module throws exceptions (e.g. `PDOException`, `RuntimeException`) for unexpected failures, it's recommended that your application register a global exception handler with [`set_exception_handler()`](https://www.php.net/manual/en/function.set-exception-handler.php). This handler should show the user a generic error message while logging the full exception details - never display them directly, especially in production. Also make sure `display_errors` is disabled in production, so PHP itself doesn't leak error details.
+
+This must be set up by your application, not by this module - `set_exception_handler()` installs a single, global handler for the entire process, so the module must not register its own and override your application's handler.
+
 ## Admin Session Setup
 
 Some module operations are restricted to users with administrator privileges. This is enforced by checking a session key against a required value, both defined in `csrf_config.php`:
