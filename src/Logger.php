@@ -73,6 +73,12 @@ class Logger
     /**
      * Logs a cleanup related message to 'token_cleanup.log' file. 
      * This method is specifically for logging token cleanup events
+     *
+     * @param string $message Message to log.
+     * @param array|string|null $errorInfo Additional error information.
+     * @return void
+     * @throws \RuntimeException If writing the log file fails.
+     * @uses Logger::writeLog()
      */
     public function logCleanup(string $message, array|string|null $errorInfo = null): void
     {
@@ -82,6 +88,12 @@ class Logger
     /**
      * Logs general information, warnings or errors to 'general.log' file.
      * This method is for logging general application events or issues.
+     * 
+     * @param string $message Message to log.
+     * @param array|string|null $errorInfo Additional error information.
+     * @return void
+     * @throws \RuntimeException If writing the log file fails.
+     * @uses Logger::writeLog()
      */
     public function logInfo(string $message, array|string|null $errorInfo = null): void
     {

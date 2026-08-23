@@ -15,6 +15,12 @@ trait AddDatabaseAndLogger
         $this->config = $config ?? new Config();
     }
 
+    /**
+     * Lazy-loads the database instance.
+     *
+     * @throws \RuntimeException If the database connection fails.
+     * @return Database
+     */
     protected function getDb(): Database
     {
         if ($this->dbInstance === null) {
@@ -24,7 +30,11 @@ trait AddDatabaseAndLogger
         return $this->dbInstance;
     }
 
-    // Makes instance of Logger class
+    /**
+     * Lazy-loads the logger instance.
+     *
+     * @return Logger
+     */
     protected function getLogger(): Logger
     {
         if ($this->logger === null) {

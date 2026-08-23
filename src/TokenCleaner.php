@@ -84,6 +84,9 @@ class TokenCleaner
      * @param string $action Action 'delete' or 'update' depending what action you want to perform.
      * @throws \InvalidArgumentException If the action is not valid.
      * @throws \LogicException If saving status is not allowed.
+     * @throws \OutOfRangeException If the user ID is not found in the session.
+     * @throws \RuntimeException If a database operation fails.
+     * @throws \LengthException If updating the token status is called with an empty ID.
      * @return bool Returns true if action is done or there are no tokens, otherwise false.
      * @uses TokenRepository::delete()
      * @uses TokenRepository::fetchTokenWithData()
@@ -136,6 +139,8 @@ class TokenCleaner
      * Deletes excess tokens if the limit is exceeded.
      *
      * @param int $userId The ID of the user to enforce the token limit for.
+     * @throws \RuntimeException If deleting the excess tokens fails.
+     * @throws \InvalidArgumentException If fetching the user's tokens fails validation.
      * @return void
      * @uses TokenRepository::fetchTokenWithData()
      * @uses TokenRepository::deleteUnsafe()

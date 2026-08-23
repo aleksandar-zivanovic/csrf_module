@@ -29,6 +29,9 @@ class DatabaseSchemaManager
 
     private array $dbIndexes;
 
+    /**
+     * @throws \LogicException If the current user is not an admin.
+     */
     public function __construct(?Database $db = null, ?Logger $logger = null, ?Config $config = null)
     {
         $this->initDatabaseIndexAndLogger($db, $logger, $config);
@@ -233,18 +236,27 @@ class DatabaseSchemaManager
 
     /**
      * Checks if status column exists in csrf_tokens table.
+     * @throws \RuntimeException If the database connection fails.
      * @return bool Returns true if status column exists, otherwise false.
      */
     public function doesColumnStatusExist(): bool
     {
         $query = "DESCRIBE " . $this->config->dbName . ".csrf_tokens";
-        $stmt = $this->getDb()->getDbh()->query($query);
-        $table = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        try {
+            $stmt = $this->getDb()->getDbh()->query($query);
+            $table = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\PDOException $e) {
+            $this->getLogger()->logDatabaseError("doesColumnStatusExist() method error: Failed to describe table.", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
+            throw new \RuntimeException("Describing csrf_tokens table failed.");
+        }
+
         foreach ($table as $column) {
             if ($column['Field'] === 'status') {
                 return true;
             }
         }
+
         return false;
     }
 
@@ -343,6 +355,9 @@ class DatabaseSchemaManager
     /**
      * Fetches and returns all index data from the 'csrf_tokens' table 
      * as a multidimensional associative array.
+     * 
+     * @throws \RuntimeException If the query execution fails.
+     * @return array
      */
     public function findAllIndexes(): array
     {
@@ -351,17 +366,18 @@ class DatabaseSchemaManager
         try {
             $stmt = $this->getDb()->getDbh()->prepare($sql);
             $stmt->execute();
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("findAllIndexes error", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new \RuntimeException("findAllIndexes method query execution failed");
         }
-
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 
     /**
      * Retrieves and filters unique index names from the 'Key_name' column.
      * Removes duplicate values and returns an array of unique index names.
+     * 
+     * @throws \RuntimeException If retrieving index data fails.
      * @return array Returns an array of unique values for index 'Key_name' column.
      */
     public function filterAllIndexes(): array
@@ -395,7 +411,8 @@ class DatabaseSchemaManager
      * Implements `checkAllowedColumnsForIndex` method to check if $column value is in allowed range
      * @param string|array $column Column or columns to check for existence inside index.
      * @return bool Returns true if an index exists for the column(s), otherwise false.
-     * @throws \Exception If the column value is not allowed.
+     * @throws \InvalidArgumentException If the column value is not allowed.
+     * @throws \RuntimeException If retrieving index data fails.
      */
     public function isIndexOnColumn(string|array $column): bool
     {

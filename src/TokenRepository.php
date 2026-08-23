@@ -18,6 +18,12 @@ class TokenRepository
 
     /**
      * Saves a new CSRF token to the database.
+     *
+     * @param string $csrfToken The CSRF token to save.
+     * @param string $timestamp The timestamp when the token was created.
+     * @param int $userId The ID of the user associated with the token.
+     * @throws \RuntimeException If the database connection or insert query fails.
+     * @return void
      */
     public function save(string $csrfToken, string $timestamp, int $userId): void
     {
@@ -60,7 +66,7 @@ class TokenRepository
      * 
      * @return array|null Returns matching rows as an associative array, or null if none found.
      * @throws \InvalidArgumentException If a condition's empty, column, operator, or value is not allowed, or is null.
-     * @throws \TypeError If $conditions is not an array of condition-arrays (e.g. a single flat associative array is passed directly).
+     * @throws \RuntimeException If the query execution fails.
      * @see CSRF::getTokensWithData() Public entry point that calls this method.
      */
     public function fetchTokenWithData(?array $conditions = null, ?string $sortDirection = null): array|null
@@ -129,12 +135,11 @@ class TokenRepository
             }
 
             $stmt->execute();
+            $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
         } catch (\PDOException $e) {
             $this->getLogger()->logDatabaseError("fetchTokenWithData error: SELECT query failed!", ["message" => $e->getMessage(), 'code' => $e->getCode()]);
             throw new \RuntimeException("fetchTokenWithData method query execution failed");
         }
-
-        $result = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         return empty($result) ? null : $result;
     }

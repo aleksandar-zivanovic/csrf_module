@@ -39,6 +39,10 @@ class TokenValidator
      * - token token is expired.
      * Function returns true if the token is valid and false if is invalid
      * @throws \RuntimeException If updating the token status fails.
+     * @throws \InvalidArgumentException If fetching or updating token data fails validation.
+     * @throws \LengthException If updating the token status is called with an empty ID.
+     * @throws \LogicException If deleting an expired token is not permitted for the current session.
+     * @throws \OutOfRangeException If the token used for deletion is not found in the session.
      * @return bool Returns true if the token is valid, false otherwise.
      * @see CSRF::tokenValidation()
      */
