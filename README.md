@@ -203,11 +203,12 @@ If the token has expired: when saving status is enabled, the token's status is c
 
 **Note**: `DatabaseSchemaManager` requires an admin session - see [Admin Session Setup](#admin-session-setup).
 
-- To create an index on specific columns (`status`, `timestamp`, or both), use the `addIndex` method:
+- To create an index on specific columns (`status`, `timestamp`, `user_id`, or a combination of `status` and `timestamp`), use the `addIndex` method:
 
 ```php
 $manager = new DatabaseSchemaManager();
 $manager->addIndex('status'); // Creates index for the 'status' column
+$manager->addIndex('user_id'); // Creates index for the 'user_id' column
 $manager->addIndex(['status', 'timestamp']); // Creates a single combined index (idx_status_timestamp) on 'status' and 'timestamp'
 ```
 
@@ -215,11 +216,12 @@ $manager->addIndex(['status', 'timestamp']); // Creates a single combined index 
 
 The method will log an error if the index already exists and return `false`. If the index is successfully created, it will return `true`.
 
-- To remove an index from specific columns (`status`, `timestamp`, or both), use the `removeIndex` method:
+- To remove an index from specific columns (`status`, `timestamp`, `user_id`, or a combination of `status` and `timestamp`), use the `removeIndex` method:
 
 ```php
 $manager = new DatabaseSchemaManager();
 $manager->removeIndex('status'); // Removes index for the 'status' column
+$manager->removeIndex('user_id'); // Removes index for the 'user_id' column
 $manager->removeIndex(['status', 'timestamp']); // Removes index for both 'status' and 'timestamp' columns
 ```
 
@@ -270,6 +272,7 @@ You can configure various aspects of the CSRF module by editing the configuratio
 const INDEX_TIMESTAMP = false; // Set true to enable indexing on timestamp column
 const INDEX_STATUS    = false; // Set true to enable indexing on status column
 const INDEX_BOTH      = false; // Set true to enable indexing for both timestamp and status columns
+const INDEX_USER_ID   = false; // Set true to enable indexing on user_id column
 ```
 
 - **Removing Indexes**: You can remove indexes for the `status` and `timestamp` columns by calling the `removeIndex` method with the appropriate column name(s). See the `Usage` section for more details.

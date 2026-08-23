@@ -19,6 +19,7 @@ class Config
         public readonly bool $indexTimestamp = INDEX_TIMESTAMP,
         public readonly bool $indexStatus = INDEX_STATUS,
         public readonly bool $indexBoth = INDEX_BOTH,
+        public readonly bool $indexUserId = INDEX_USER_ID,
         public readonly bool $dbPersistent = DB_PERSISTENT,
         public readonly ?int $tokensPerUser = TOKENS_PER_USER
     ) {}

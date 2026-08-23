@@ -36,6 +36,7 @@ class DatabaseSchemaManager
             'status' => $this->config->indexStatus,
             'timestamp' => $this->config->indexTimestamp,
             'status_timestamp' => $this->config->indexBoth,
+            'user_id' => $this->config->indexUserId,
         ];
 
         if (!$this->isUserAdmin()) {
@@ -101,6 +102,7 @@ class DatabaseSchemaManager
         if ($this->dbIndexes['status'] === true) $sql .= ", INDEX idx_status (status)";
         if ($this->dbIndexes['timestamp'] === true) $sql .= ", INDEX idx_timestamp (timestamp)";
         if ($this->dbIndexes['status_timestamp'] === true) $sql .= ", INDEX idx_status_timestamp (status, timestamp)";
+        if ($this->dbIndexes['user_id'] === true) $sql .= ", INDEX idx_user_id (user_id)";
 
         $sql .= ");";
 
@@ -283,6 +285,10 @@ class DatabaseSchemaManager
             $sql .= "timestamp ON csrf_tokens (timestamp)";
         }
 
+        if ($column === 'user_id') {
+            $sql .= "user_id ON csrf_tokens (user_id)";
+        }
+
         try {
             $this->getDb()->getDbh()->exec($sql);
             $this->getLogger()->logInfo("addIndex success: Index added.");
@@ -366,7 +372,7 @@ class DatabaseSchemaManager
 
     /**
      * Checks if column/columns parameter has allowed value.
-     * Alowed values: 'status', 'timestamp', ['status', 'timestamp'] and ['timestamp', 'status'].
+     * Alowed values: 'status', 'timestamp', 'user_id', ['status', 'timestamp'] and ['timestamp', 'status'].
      * @param string|array $column Value that should be checked.
      * @throws \InvalidArgumentException If $column has a disallowed value.
      * @return void
@@ -374,13 +380,13 @@ class DatabaseSchemaManager
     public function checkAllowedColumnsForIndex(string|array $column): void
     {
         $allowedArrays = [['status', 'timestamp'], ['timestamp', 'status']];
-        $allowedStrings = ['status', 'timestamp'];
+        $allowedStrings = ['status', 'timestamp', 'user_id'];
         if (is_array($column)) {
             if (!in_array($column, $allowedArrays, true)) {
                 throw new \InvalidArgumentException("Invalid column array. Allowed values are ['status', 'timestamp'] or ['timestamp', 'status'].");
             }
         } elseif (!in_array($column, $allowedStrings, true)) {
-            throw new \InvalidArgumentException("Invalid column value. Allowed values are 'status' and 'timestamp'.");
+            throw new \InvalidArgumentException("Invalid column value. Allowed values are 'status', 'timestamp' and 'user_id'.");
         }
     }
 

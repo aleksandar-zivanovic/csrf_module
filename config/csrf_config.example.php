@@ -44,9 +44,10 @@ const ROLE_VALUE = 'admin'; // Required role value for admin access
  * - timestamp: Used for storing the token's creation time.
  * - status: Used for tracking the token's state (valid, used, expired).
  * - both: An index on both 'timestamp' and 'status' columns.
- * 
- * Enabling indexes can speed up queries involving these columns, especially 
- * if you're frequently querying based on `timestamp` or `status`. However, 
+ * - user_id: Used for looking up tokens by user. Recommended for installations with a larger number of users.
+ *
+ * Enabling indexes can speed up queries involving these columns, especially
+ * if you're frequently querying based on `timestamp`, `status`, or `user_id`. However,
  * adding indexes also slightly affects the performance of insertions and updates.
  * 
  * If `INDEX_BOTH` is enabled, it will create a combined index on both the `timestamp`
@@ -57,6 +58,7 @@ const ROLE_VALUE = 'admin'; // Required role value for admin access
 const INDEX_TIMESTAMP = false; // set true to enable indexing on timestamp column
 const INDEX_STATUS    = false; // set true to enable indexing on status column
 const INDEX_BOTH      = false; // set true to enable indexing on timestamp and status columns
+const INDEX_USER_ID   = false; // set true to enable indexing on user_id column
 
 /**
  * Set to true to use a persistent database connection.
