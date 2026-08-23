@@ -39,6 +39,7 @@ class TokenValidator
      * - token token is expired.
      * Function returns true if the token is valid and false if is invalid
      * @throws \RuntimeException If updating the token status fails.
+     * @return bool Returns true if the token is valid, false otherwise.
      * @see CSRF::tokenValidation()
      */
     public function validation(): bool

@@ -20,6 +20,6 @@ class Config
         public readonly bool $indexStatus = INDEX_STATUS,
         public readonly bool $indexBoth = INDEX_BOTH,
         public readonly bool $dbPersistent = DB_PERSISTENT,
-
+        public readonly ?int $tokensPerUser = TOKENS_PER_USER
     ) {}
 }

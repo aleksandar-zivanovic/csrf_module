@@ -56,17 +56,22 @@ class TokenRepository
      *  ['column' => 'status', 'operator' => '=', 'value' => 'valid'], 
      *  ['column' => 'user_id', 'operator' => '>=', 'value' => 123]
      * ]
+     * @param string|null $sortDirection Optional sorting direction (ASC or DESC).
      * 
      * @return array|null Returns matching rows as an associative array, or null if none found.
      * @throws \InvalidArgumentException If a condition's empty, column, operator, or value is not allowed, or is null.
      * @throws \TypeError If $conditions is not an array of condition-arrays (e.g. a single flat associative array is passed directly).
      * @see CSRF::getTokensWithData() Public entry point that calls this method.
      */
-    public function fetchTokenWithData(?array $conditions = null): array|null
+    public function fetchTokenWithData(?array $conditions = null, ?string $sortDirection = null): array|null
     {
         // Throws exception if $conditions is an empty array
         if ($conditions !== null && empty($conditions)) {
             throw new \InvalidArgumentException("Conditions must not be empty array");
+        }
+
+        if (!in_array($sortDirection, [null, 'ASC', 'DESC'], true)) {
+            throw new \InvalidArgumentException("Sort direction must be either 'ASC', 'DESC', or null.");
         }
 
         $query = "SELECT * FROM csrf_tokens";
@@ -106,6 +111,10 @@ class TokenRepository
             }
 
             $query .= " WHERE " . implode(" AND ", $whereClause);
+        }
+
+        if ($sortDirection !== null) {
+            $query .= " ORDER BY id " . $sortDirection;
         }
 
         try {
@@ -214,6 +223,7 @@ class TokenRepository
      * @throws \InvalidArgumentException If the $column is invalid or $value empty.
      * @throws \RuntimeException If the database query fails.
      * @return bool Returns true on success, false on failure.
+     * @uses TokenRepository::deleteExecute()
      * @see CSRF::deleteToken()
      */
     public function delete(string $column, string|int|array $value): bool
@@ -262,17 +272,11 @@ class TokenRepository
             throw new \InvalidArgumentException("Value array must be a sequential list, not associative.");
         }
 
-        $db = $this->getDb();
         $query = "DELETE FROM csrf_tokens WHERE {$column} ";
 
         if (is_array($value)) {
-            $placeholders = [];
-            $i = 0;
-            foreach ($value as $_) {
-                $placeholders[] = ":{$column}_{$i}";
-                $i++;
-            }
-
+            // Set placeholders for the query
+            $placeholders = $this->setPlaceholders($column, $value);
             $query .= "IN (" . implode(", ", $placeholders) . ")";
         }
 
@@ -281,6 +285,49 @@ class TokenRepository
             $value = [$value];
         }
 
+        if ($this->deleteExecute($query, $column, $value)) {
+            unset($_SESSION["csrf_token"]);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Deletes multiple CSRF tokens from the database without any filters.
+     * NOTE: Data provided must be from SAFE source.
+     *
+     * @param string $column The column from database.
+     * @param array $values The values to delete.
+     * @throws \RuntimeException If the database query fails.
+     * @return bool True on success, false on failure.
+     * @uses TokenRepository::deleteExecute()
+     */
+    public function deleteUnsafe(string $column, array $values): bool
+    {
+        $query = "DELETE FROM csrf_tokens WHERE {$column} ";
+        // Set placeholders for the query
+        $placeholders = $this->setPlaceholders($column, $values);
+        $query .= "IN (" . implode(", ", $placeholders) . ")";
+
+        // Execute the delete query
+        return $this->deleteExecute($query, $column, $values);
+    }
+
+    /**
+     * Executes a delete query.
+     *
+     * @param string $query The SQL query to execute.
+     * @param string $column The column name.
+     * @param array $value The values to bind.
+     * @throws \RuntimeException If the database query fails.
+     * @return bool True on success, false on failure.
+     * @see TokenRepository::delete()
+     * @see TokenRepository::deleteUnsafe()
+     */
+    private function deleteExecute(string $query, string $column, array $value): bool
+    {
+        $db = $this->getDb();
         try {
             $stmt = $db->getDbh()->prepare($query);
 
@@ -302,8 +349,17 @@ class TokenRepository
             throw new \RuntimeException("Deleting token from the database failed.");
         }
 
-        unset($_SESSION["csrf_token"]);
-
         return $stmt->rowCount() > 0;
+    }
+
+    private function setPlaceholders(string $column, array $values): array
+    {
+        $placeholders = [];
+        $i = 0;
+        foreach ($values as $_) {
+            $placeholders[] = ":{$column}_{$i}";
+            $i++;
+        }
+        return $placeholders;
     }
 }

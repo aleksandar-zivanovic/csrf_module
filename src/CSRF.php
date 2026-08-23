@@ -25,20 +25,30 @@ class CSRF
     }
 
     /**
-     * Generates CSRF token and adds data to the database
+     * Generates CSRF token and adds data to the database.
+     * Before generating a new token, it enforces the token limit for the user.
+     * 
      * @return void
+     * @uses TokenCleaner::enforceLimit()
      * @uses TokenGenerator::generate()
      * @uses TokenRepository::save()
      */
     public function generateAndSaveCsrfToken(): void
     {
+        $this->userId = $this->getUserIdFromSession();
+
+        // Enforce token limit for the user
+        if ($this->config->tokensPerUser !== null) {
+            $this->cleaner->enforceLimit($this->userId);
+        }
+
+        // Generate CSRF token
         $this->csrfToken = $this->generator->generate();
 
         // Sets timestamp value
         $this->timestamp = time();
 
         // Sets $this->userId value from session 
-        $this->userId = $this->getUserIdFromSession();
         if (!is_int($this->userId) || $this->userId <= 0) {
             throw new \UnexpectedValueException("User ID session value is missing or invalid.");
         }
@@ -54,6 +64,8 @@ class CSRF
      * - token in database has status 'valid', 
      * - token token is expired.
      * Funtion returns true if the token is valid and false if is invalid
+     * @throws \RuntimeException If updating the token status fails.
+     * @return bool Returns true if the token is valid, false otherwise.
      */
     public function tokenValidation(): bool
     {

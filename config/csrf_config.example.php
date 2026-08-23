@@ -25,6 +25,11 @@ const USER_ID_SESSION_KEY = 'user_id';
 const TOKEN_EXPIRATION_TIME = 3600;
 
 /**
+ * Set the maximum number of tokens allowed per user.
+ */
+const TOKENS_PER_USER = 5;
+
+/**
  * Session key and value used to determine admin access.
  * Example: $_SESSION['role'] should have value 'admin' to grant access.
  */

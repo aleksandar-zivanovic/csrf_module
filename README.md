@@ -295,7 +295,15 @@ const INDEX_BOTH      = false; // Set true to enable indexing for both timestamp
     const DB_PERSISTENT = false; // Set true only in production; keep false in development
     ```
 
-    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `dbPersistent`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`) are optional constructor parameters and can be set individually - any not provided fall back to the corresponding constant from `csrf_config.php`.
+- **Active Token Limit Per User**: Control the maximum number of active tokens a single user can have by setting the following constant in `csrf_config.php`. When a new token is generated and the user is already at the limit, the oldest excess tokens are deleted automatically to make room. Set to `null` to disable the limit entirely (old tokens are never deleted automatically):
+
+    ```php
+    const TOKENS_PER_USER = 5; // or null to disable the limit
+    ```
+
+    This limit only caps how many tokens a user can accumulate - it does not limit how fast new tokens can be requested. Throttling token generation requests is a recommendation for the application using this module (for example, via APCu or web server configuration), not something the module itself handles.
+
+    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `dbPersistent`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`, `tokensPerUser`) are optional constructor parameters and can be set individually - any not provided fall back to the corresponding constant from `csrf_config.php`.
 
 ## License
 

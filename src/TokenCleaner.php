@@ -130,4 +130,40 @@ class TokenCleaner
             return $this->repository->changeStatus($ids, 'expired');
         }
     }
+
+    /**
+     * Enforces a limit on the number of active tokens per user.
+     * Deletes excess tokens if the limit is exceeded.
+     *
+     * @param int $userId The ID of the user to enforce the token limit for.
+     * @return void
+     * @uses TokenRepository::fetchTokenWithData()
+     * @uses TokenRepository::deleteUnsafe()
+     * @see CSRF::enforceTokenLimit()
+     */
+    public function enforceLimit(int $userId): void
+    {
+        $conditions = [
+            [
+                'column' => 'user_id',
+                'operator' => '=',
+                'value' => $userId
+            ]
+        ];
+
+        $usersTokens = $this->repository->fetchTokenWithData($conditions);
+
+        if ($usersTokens !== null) {
+            $totalTokens = count($usersTokens);
+            if ($totalTokens >= $this->config->tokensPerUser) {
+                $excessTokensCount = $totalTokens - $this->config->tokensPerUser;
+                $expiredTokens = array_slice($usersTokens, 0, $excessTokensCount + 1);
+                $tokensForRemoval = array_column($expiredTokens, 'token');
+
+                if (!$this->repository->deleteUnsafe('token', $tokensForRemoval)) {
+                    throw new \RuntimeException("Failed to delete excess tokens for user ID: $userId.");
+                }
+            }
+        }
+    }
 }
