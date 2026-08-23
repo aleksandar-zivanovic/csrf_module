@@ -26,6 +26,7 @@ const TOKEN_EXPIRATION_TIME = 3600;
 
 /**
  * Set the maximum number of tokens allowed per user.
+ * Set to null to disable the limit (never delete old tokens automatically).
  */
 const TOKENS_PER_USER = 5;
 
