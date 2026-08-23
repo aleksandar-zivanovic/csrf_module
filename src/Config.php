@@ -1,5 +1,7 @@
 <?php
+
 namespace CSRFModule;
+
 require_once __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'csrf_config.php';
 
 class Config
@@ -17,5 +19,7 @@ class Config
         public readonly bool $indexTimestamp = INDEX_TIMESTAMP,
         public readonly bool $indexStatus = INDEX_STATUS,
         public readonly bool $indexBoth = INDEX_BOTH,
+        public readonly bool $dbPersistent = DB_PERSISTENT,
+
     ) {}
 }

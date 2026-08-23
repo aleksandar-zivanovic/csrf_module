@@ -51,3 +51,10 @@ const ROLE_VALUE = 'admin'; // Required role value for admin access
 const INDEX_TIMESTAMP = false; // set true to enable indexing on timestamp column
 const INDEX_STATUS    = false; // set true to enable indexing on status column
 const INDEX_BOTH      = false; // set true to enable indexing on timestamp and status columns
+
+/**
+ * Set to true to use a persistent database connection.
+ * Persistent connections should only be enabled in production,
+ * not in a development environment.
+ */
+const DB_PERSISTENT = false;

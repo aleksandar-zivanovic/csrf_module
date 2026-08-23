@@ -23,7 +23,7 @@ class Database
 
         $dsn = "mysql:host=" . $this->config->dbHost . ";dbname=" . $this->config->dbName;
         $options = [
-            \PDO::ATTR_PERSISTENT => false,
+            \PDO::ATTR_PERSISTENT => $this->config->dbPersistent,
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
         ];
 

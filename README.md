@@ -289,7 +289,13 @@ const INDEX_BOTH      = false; // Set true to enable indexing for both timestamp
     $csrf = new CSRF(db: $db, config: $config);
     ```
 
-    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`) are optional constructor parameters and can be set individually - any not provided fall back to the corresponding constant from `csrf_config.php`.
+- **Persistent Database Connection**: Control whether the database connection is persistent by setting the following constant in `csrf_config.php`:
+
+    ```php
+    const DB_PERSISTENT = false; // Set true only in production; keep false in development
+    ```
+
+    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `dbPersistent`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`) are optional constructor parameters and can be set individually - any not provided fall back to the corresponding constant from `csrf_config.php`.
 
 ## License
 
