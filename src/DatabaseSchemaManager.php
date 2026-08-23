@@ -251,12 +251,15 @@ class DatabaseSchemaManager
      * If an index already exists for the column(s), throws a RuntimeException.
      * If the index is successfully created, returns true.
      * @param string|array $column The column(s) on which the index should be created.
-     *
+     * @throws \InvalidArgumentException If $column has a disallowed value.
      * @throws \RuntimeException If the index already exists or if the index creation fails.
      * @return true Always returns `true` on success.
      */
     public function addIndex(string|array $column): true
     {
+        // Checks if parameter $column is allowed value
+        $this->checkAllowedColumnsForIndex($column);
+
         // Checks if the column(s) is already indexed
         if ($this->isIndexOnColumn($column) === true) {
             throw new \RuntimeException("Index already exists for column(s): " . (is_array($column) ? implode(", ", $column) : $column));
