@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CSRFModule;
 
 class TokenRepository
@@ -20,12 +22,12 @@ class TokenRepository
      * Saves a new CSRF token to the database.
      *
      * @param string $csrfToken The CSRF token to save.
-     * @param string $timestamp The timestamp when the token was created.
+     * @param int $timestamp The timestamp when the token was created.
      * @param int $userId The ID of the user associated with the token.
      * @throws \RuntimeException If the database connection or insert query fails.
      * @return void
      */
-    public function save(string $csrfToken, string $timestamp, int $userId): void
+    public function save(string $csrfToken, int $timestamp, int $userId): void
     {
         $query = "INSERT INTO csrf_tokens (token, timestamp, status, user_id) VALUES (:tk, :ts, :st, :ui)";
 
@@ -148,7 +150,7 @@ class TokenRepository
      * Changes the status of a CSRF token.
      * This method updates the status of a token in the database.
      *
-     * @param string|array $id The ID(s) of the token(s) to update.
+     * @param int|array $id The ID(s) of the token(s) to update.
      * @param string $status The new status to set.
      * @throws \LengthException If the $id parameter is empty.
      * @throws \InvalidArgumentException If the $status parameter is invalid or $id is associative array.
@@ -156,7 +158,7 @@ class TokenRepository
      * @return bool Returns true on success, false on failure.
      * @see CSRF::changeTokenStatus()
      */
-    public function changeStatus(string|array $id, string $status): bool
+    public function changeStatus(int|array $id, string $status): bool
     {
         if (empty($id)) {
             throw new \LengthException("ID parameter must not be empty.");
@@ -183,7 +185,7 @@ class TokenRepository
             $query .= " id IN (" . implode(", ", $placeholders) . ")";
         }
 
-        if (is_string($id)) {
+        if (is_int($id)) {
             $query .= " id = :id";
         }
 
@@ -198,8 +200,8 @@ class TokenRepository
                 }
             }
 
-            if (is_string($id)) {
-                $stmt->bindValue(":id", $id, \PDO::PARAM_STR);
+            if (is_int($id)) {
+                $stmt->bindValue(":id", $id, \PDO::PARAM_INT);
             }
 
             $stmt->bindValue(":st", $status, \PDO::PARAM_STR);

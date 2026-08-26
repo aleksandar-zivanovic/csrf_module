@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CSRFModule;
 
 class CSRF
@@ -114,7 +116,7 @@ class CSRF
      * This method updates the status of a token in the database.
      * Called only internally by other methods, which always provide a valid, database-sourced ID — no additional input validation is performed here.
      *
-     * @param string|array $id The ID(s) of the token(s) to update.
+     * @param int|array $id The ID(s) of the token(s) to update.
      * @param string $status The new status to set.
      * @throws \InvalidArgumentException If $status is not one of the allowed status values.
      * @throws \LengthException If the $id parameter is empty.
@@ -122,7 +124,7 @@ class CSRF
      * @return bool True on success, false on failure.
      * @uses TokenRepository::changeStatus()
      */
-    public function changeTokenStatus(string|array $id, string $status): bool
+    public function changeTokenStatus(int|array $id, string $status): bool
     {
         return $this->repository->changeStatus($id, $status);
     }

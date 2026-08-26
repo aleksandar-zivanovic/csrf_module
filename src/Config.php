@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace CSRFModule;
 
 require_once __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'csrf_config.php';
