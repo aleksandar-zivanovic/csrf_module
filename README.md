@@ -12,6 +12,7 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 - Custom expiration time for tokens.
 - Optional storage of token status (valid, used, expired).
 - Index creation and removal for `status` and `timestamp` columns.
+- CSRF protection for anonymous (unauthenticated) users, stored entirely in the session - no database required.
 
 ## Installation
 
@@ -239,6 +240,51 @@ $csrf->logoutTokensCleanup('update'); // when you want to change status
 
 This will change status of all tokens to 'expired' or remove all tokens associated with the current user's ID from the database. Ensure the session contains a valid user_id for this method to work.
 
+- ### Protecting Forms for Anonymous (Unauthenticated) Users
+
+For forms accessible to unauthenticated (anonymous) users - for example, login or registration forms - use the `CSRFAnonymous` class instead of `CSRF`. It works entirely through the session - no database is used, and no `user_id` session key is required.
+
+Unlike `CSRF`, `CSRFAnonymous` supports multiple independent tokens per session (one per form), each identified by a `$csrfFormId` generated internally by the module.
+
+**Generating a token for a form:**
+
+```php
+use CSRFModule\CSRFAnonymous;
+
+$csrfAnonymous = new CSRFAnonymous();
+$csrfAnonymous->generateCsrfFormId();
+$csrfAnonymous->generateToken();
+$csrfAnonymous->setSession();
+```
+
+**Note**: the three methods above must be called in this exact order - `setSession()` reads the values `generateCsrfFormId()` and `generateToken()` store on the object.
+
+Include both values as hidden fields in your form:
+
+```php
+<input type="hidden" name="csrf_form_id" value="<?= htmlspecialchars($csrfAnonymous->csrfFormId) ?>">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfAnonymous->csrfToken) ?>">
+```
+
+**Validating the submitted token:**
+
+```php
+$csrfAnonymous = new CSRFAnonymous();
+
+if (!$csrfAnonymous->tokenValidation($_POST['csrf_form_id'], $_POST['csrf_token'])) {
+    // Handle invalid, expired, or already-used token
+}
+```
+
+The token is single-use - it's destroyed from the session immediately after a successful validation, so the same token cannot be submitted twice.
+
+Call `destroyAllTokens()` inside your application's login method, right after a successful login, to clear all remaining anonymous tokens from the session (forms left open in other tabs will need a fresh token after this):
+
+```php
+$csrfAnonymous = new CSRFAnonymous();
+$csrfAnonymous->destroyAllTokens();
+```
+
 ## Cleaning Expired CSRF Tokens
 
 The module provides functionality for cleaning all expired CSRF tokens, as well as for cleaning expired tokens for a specific user, from the database. Tokens are considered expired if their timestamp is older than the specified expiration time, calculated as ```time() - TOKEN_EXPIRATION_TIME```. The token lifetime is defined in the `csrf_config.php` file via the `TOKEN_EXPIRATION_TIME` constant. Expired tokens are always deleted from the database. You can start the cleaning process if you have admin privileges by calling the `allTokensCleanUp` method in your application, as shown in the example below:
@@ -306,7 +352,16 @@ const INDEX_USER_ID   = false; // Set true to enable indexing on user_id column
 
     This limit only caps how many tokens a user can accumulate - it does not limit how fast new tokens can be requested. Throttling token generation requests is a recommendation for the application using this module (for example, via APCu or web server configuration), not something the module itself handles.
 
-    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `dbPersistent`, `userIdSessionKey`, `tokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`, `tokensPerUser`) are optional constructor parameters and can be set individually - any not provided fall back to the corresponding constant from `csrf_config.php`.
+- **Anonymous Token Settings**: Control the expiration time and the maximum number of concurrent anonymous tokens per session by setting the following constants in `csrf_config.php`:
+
+    ```php
+    const ANONYMOUS_TOKEN_EXPIRATION_TIME = 600; // seconds
+    const ANONYMOUS_TOKENS_LIMIT = 1;            // a number to set the limit or null to disable the limit
+    ```
+
+    When the limit is reached, the oldest anonymous token is deleted automatically to make room for the new one.
+
+    All `Config` properties (`saveCsrfStatus`, `dbUser`, `dbPass`, `dbHost`, `dbName`, `dbPersistent`, `userIdSessionKey`, `tokenExpirationTime`, `anonymousTokenExpirationTime`, `roleName`, `roleValue`, `indexTimestamp`, `indexStatus`, `indexBoth`, `tokensPerUser`, `anonymousTokensLimit`) are optional constructor parameters and can be set individually - any not provided fall back to the corresponding constant from `csrf_config.php`.
 
 ## License
 

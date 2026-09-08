@@ -25,10 +25,22 @@ const USER_ID_SESSION_KEY = 'user_id';
 const TOKEN_EXPIRATION_TIME = 3600;
 
 /**
+ * Set the expiration time for CSRF tokens for anonymous users.
+ * Time is calculated in seconds.
+ */
+const ANONYMOUS_TOKEN_EXPIRATION_TIME = 600;
+
+/**
  * Set the maximum number of tokens allowed per user.
  * Set to null to disable the limit (never delete old tokens automatically).
  */
 const TOKENS_PER_USER = 5;
+
+/**
+ * Set the maximum number of concurrent anonymous tokens allowed per session.
+ * Set to null to disable the limit (never delete old tokens automatically).
+ */
+const ANONYMOUS_TOKENS_LIMIT = 1;
 
 /**
  * Session key and value used to determine admin access.

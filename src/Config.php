@@ -16,6 +16,7 @@ class Config
         public readonly string $dbName = DB_NAME,
         public readonly string $userIdSessionKey = USER_ID_SESSION_KEY,
         public readonly int $tokenExpirationTime = TOKEN_EXPIRATION_TIME,
+        public readonly int $anonymousTokenExpirationTime = ANONYMOUS_TOKEN_EXPIRATION_TIME,
         public readonly string $roleName = ROLE_NAME,
         public readonly string $roleValue = ROLE_VALUE,
         public readonly bool $indexTimestamp = INDEX_TIMESTAMP,
@@ -23,6 +24,7 @@ class Config
         public readonly bool $indexBoth = INDEX_BOTH,
         public readonly bool $indexUserId = INDEX_USER_ID,
         public readonly bool $dbPersistent = DB_PERSISTENT,
-        public readonly ?int $tokensPerUser = TOKENS_PER_USER
+        public readonly ?int $tokensPerUser = TOKENS_PER_USER,
+        public readonly ?int $anonymousTokensLimit = ANONYMOUS_TOKENS_LIMIT
     ) {}
 }
