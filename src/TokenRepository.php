@@ -29,13 +29,20 @@ class TokenRepository
      */
     public function save(string $csrfToken, int $timestamp, int $userId): void
     {
-        $query = "INSERT INTO csrf_tokens (token, timestamp, status, user_id) VALUES (:tk, :ts, :st, :ui)";
+        // The status column exists only when saving status is turned on
+        if ($this->config->saveCsrfStatus === true) {
+            $query = "INSERT INTO csrf_tokens (token, timestamp, status, user_id) VALUES (:tk, :ts, :st, :ui)";
+        } else {
+            $query = "INSERT INTO csrf_tokens (token, timestamp, user_id) VALUES (:tk, :ts, :ui)";
+        }
 
         try {
             $stmt =  $this->getDb()->getDbh()->prepare($query);
             $stmt->bindValue(":tk", $csrfToken, \PDO::PARAM_STR);
             $stmt->bindValue(":ts", $timestamp, \PDO::PARAM_INT);
-            $stmt->bindValue(":st", "valid", \PDO::PARAM_STR);
+            if ($this->config->saveCsrfStatus === true) {
+                $stmt->bindValue(":st", "valid", \PDO::PARAM_STR);
+            }
             $stmt->bindValue(":ui", $userId, \PDO::PARAM_INT);
             $stmt->execute();
         } catch (\PDOException $e) {

@@ -8,10 +8,8 @@ class TokenValidator
 {
     use AddDatabaseAndLogger;
     use GetUserIdFromSession;
-    use GetTokenFromSession;
 
     private ?TokenRepository $repository = null;
-    private string $csrfToken;
     private int $userId;
 
     public function __construct(?Database $db = null, ?Logger $logger = null, ?Config $config = null)
@@ -34,31 +32,23 @@ class TokenValidator
     /**
      * Function checks if the token is valid for use and change status upon use.
      * It checks if: 
-     * - token from session is in valid format, 
-     * - token from session exists in database, 
+     * - token submitted with the form exists in database,
      * - the token belongs to the current user,
-     * - token in database has status 'valid', 
+     * - token in database has status 'valid',
      * - token token is expired.
+     * The token is consumed after a successful validation, so it can be used only once.
      * Function returns true if the token is valid and false if is invalid
-     * @throws \RuntimeException If updating the token status fails.
+     * @param string $tokenFromForm The CSRF token submitted with the form.
+     * @throws \RuntimeException If updating the token status or deleting the token fails.
      * @throws \InvalidArgumentException If fetching or updating token data fails validation.
      * @throws \LengthException If updating the token status is called with an empty ID.
-     * @throws \LogicException If deleting an expired token is not permitted for the current session.
-     * @throws \OutOfRangeException If the token used for deletion is not found in the session.
      * @return bool Returns true if the token is valid, false otherwise.
      * @see CSRF::tokenValidation()
      */
-    public function validation(): bool
+    public function validation(string $tokenFromForm): bool
     {
-        // Gets value of the token from session.
-        try {
-            $this->csrfToken = $this->getTokenFromSession();
-        } catch (\OutOfRangeException $th) {
-            return false;
-        }
-
-        // Fetches token data from the database
-        $conditions = [['column' => 'token', 'operator' => '=', 'value' => $this->csrfToken]];
+        // Fetches token data from the database by the token submitted with the form
+        $conditions = [['column' => 'token', 'operator' => '=', 'value' => $tokenFromForm]];
         $result = $this->repository->fetchTokenWithData($conditions);
 
         // Checks if a token exists in the database
@@ -67,11 +57,15 @@ class TokenValidator
         // Gets the first and only token record from the result that is a multidimensional array
         $tokenFromDb = $result[0];
 
+        // Exact timing-safe comparison, since the database comparison can be case-insensitive
+        if (!hash_equals($tokenFromDb['token'], $tokenFromForm)) return false;
+
         try {
             $this->userId = $this->getUserIdFromSession();
         } catch (\OutOfRangeException $th) {
             return false;
         }
+        
         // Compare user's ID from session and from the database
         if ($this->userId !== $tokenFromDb['user_id']) return false;
 
@@ -90,7 +84,7 @@ class TokenValidator
             }
 
             if ($this->config->saveCsrfStatus === false) {
-                $this->repository->delete('token', $tokenFromDb['token']);
+                $this->repository->deleteUnsafe('token', [$tokenFromDb['token']]);
                 return false;
             }
         }
@@ -100,6 +94,11 @@ class TokenValidator
             if ($this->repository->changeStatus($tokenFromDb['id'], 'used') === false) {
                 throw new \RuntimeException("Failed to update the token status to 'used'.");
             }
+        }
+
+        // Deletes the token after using it, if saving status is turned off. False means another request already used it
+        if ($this->config->saveCsrfStatus === false) {
+            if ($this->repository->deleteUnsafe('token', [$tokenFromDb['token']]) === false) return false;
         }
 
         // Token is valid, so true is returned

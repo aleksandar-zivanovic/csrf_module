@@ -4,7 +4,7 @@
 
 This module provides functionality to generate and validate CSRF tokens. It ensures protection against CSRF attacks by verifying that requests originate from trusted sources.
 
-**Current Version**: 2.0.0 - see [CHANGELOG.md](CHANGELOG.md) for release history.
+**Current Version**: 2.1.0 - see [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Features
 
@@ -148,15 +148,30 @@ Make sure to:
 
 - ### Validating CSRF Token
 
-To validate a token submitted via a form, use the `tokenValidation` method. It checks that the token exists in the database, belongs to the current user, has not expired, and (if saving token status is enabled - `SAVE_CSRF_STATUS === true` in the config file) has not already been used:
+**Generating a token for a form:** call `generateAndSaveCsrfToken()` when rendering the form. It creates a new token, saves it to the database and to the session, and stores it in the `csrfToken` property:
+
+```php
+$csrf = new CSRF();
+$csrf->generateAndSaveCsrfToken();
+```
+
+Include the token as a hidden field in your form:
+
+```php
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf->csrfToken) ?>">
+```
+
+**Validating the submitted token:** when the form is submitted, the token arrives in `$_POST['csrf_token']` - the name of the hidden field. Pass it to the `tokenValidation` method. It checks that the submitted token exists in the database, belongs to the current user, has not expired, and has not already been used:
 
 ```php
 $csrf = new CSRF();
 
-if (!$csrf->tokenValidation()) {
+if (!$csrf->tokenValidation($_POST['csrf_token'] ?? '')) {
     // Handle invalid or missing CSRF token
 }
 ```
+
+Each token can be used only once: after a successful validation, its status is changed to `used` when saving status is enabled (`SAVE_CSRF_STATUS === true` in the config file), or it is deleted from the database when saving status is disabled.
 
 If the token has expired: when saving status is enabled, the token's status is changed to expired; when it is disabled, the expired token is deleted from the database instead.
 

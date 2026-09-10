@@ -65,22 +65,22 @@ class CSRF
 
     /**
      * Function checks if the token is valid for use. It checks if: 
-     * - token from session is in valid format, 
-     * - token from session exists in database, 
-     * - token in database has status 'valid', 
+     * - token submitted with the form exists in database,
+     * - the token belongs to the current user,
+     * - token in database has status 'valid',
      * - token token is expired.
+     * The token is consumed after a successful validation, so it can be used only once.
      * Funtion returns true if the token is valid and false if is invalid
-     * 
-     * @throws \RuntimeException If updating the token status fails.
+     *
+     * @param string $tokenFromForm The CSRF token submitted with the form.
+     * @throws \RuntimeException If updating the token status or deleting the token fails.
      * @throws \InvalidArgumentException If token validation fails due to invalid data.
      * @throws \LengthException If updating the token status is called with an empty ID.
-     * @throws \LogicException If deleting an expired token is not permitted.
-     * @throws \OutOfRangeException If the token used internally is not found in the session.
      * @return bool Returns true if the token is valid, false otherwise.
      */
-    public function tokenValidation(): bool
+    public function tokenValidation(string $tokenFromForm): bool
     {
-        return $this->validator->validation();
+        return $this->validator->validation($tokenFromForm);
     }
 
     /**
