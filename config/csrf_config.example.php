@@ -46,8 +46,8 @@ const ANONYMOUS_TOKENS_LIMIT = 1;
  * Session key and value used to determine admin access.
  * Example: $_SESSION['role'] should have value 'admin' to grant access.
  */
-const ROLE_NAME  = 'role';  // Session key for user role
-const ROLE_VALUE = 'admin'; // Required role value for admin access
+const ROLE_NAME  = 'role';  // Session key for user role, e.g. $_SESSION['role']
+const ROLE_VALUE = 'admin'; // Required role value for admin access, e.g. $_SESSION['role'] = 'admin';
 
 /**
  * Database index creation setup.
@@ -55,21 +55,23 @@ const ROLE_VALUE = 'admin'; // Required role value for admin access
  * These constants control whether or not indexes are created on the columns:
  * - timestamp: Used for storing the token's creation time.
  * - status: Used for tracking the token's state (valid, used, expired).
- * - both: An index on both 'timestamp' and 'status' columns.
+ * - both: A single combined index on the 'status' and 'timestamp' columns.
  * - user_id: Used for looking up tokens by user. Recommended for installations with a larger number of users.
  *
  * Enabling indexes can speed up queries involving these columns, especially
  * if you're frequently querying based on `timestamp`, `status`, or `user_id`. However,
  * adding indexes also slightly affects the performance of insertions and updates.
  * 
- * If `INDEX_BOTH` is enabled, it will create a combined index on both the `timestamp`
- * and `status` columns, which can improve performance when filtering by both columns at once.
- * You can enable `INDEX_TIMESTAMP` and `INDEX_STATUS` alongside `INDEX_BOTH`, 
- * but they are separate indexes and might have performance trade-offs.
+ * If `INDEX_BOTH` is enabled, it creates a single combined index on the `status` and `timestamp` 
+ * columns (in that order), which can improve performance when filtering by both columns at once.
+ * Do not enable `INDEX_STATUS` alongside `INDEX_BOTH`, because the combined index already covers lookups 
+ * by `status` alone, so the separate index would only slow down insertions and updates.
+ * `INDEX_TIMESTAMP` is not redundant next to `INDEX_BOTH`: the combined index 
+ * cannot serve queries that filter only by `timestamp`.
  */
 const INDEX_TIMESTAMP = false; // set true to enable indexing on timestamp column
 const INDEX_STATUS    = false; // set true to enable indexing on status column
-const INDEX_BOTH      = false; // set true to enable indexing on timestamp and status columns
+const INDEX_BOTH      = false; // set true to enable a combined index on status and timestamp columns
 const INDEX_USER_ID   = false; // set true to enable indexing on user_id column
 
 /**
