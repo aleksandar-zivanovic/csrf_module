@@ -8,6 +8,7 @@ class TokenCleaner
 {
     use AddDatabaseAndLogger;
     use GetUserIdFromSession;
+    use IsUserAdmin;
 
     private ?TokenRepository $repository = null;
 
@@ -22,24 +23,31 @@ class TokenCleaner
      * Deletes time-outed CSRF tokens based on timestamp or timestamp and user ID. Only users with administrative privileges can perform this action.
      * 
      * @param int|null $userId If provided, tokens belonging to the specified user will be processed.
-     * 
+     * @param string|null $initiator Identifies the caller in the log when the cleanup is not started by a logged-in user, for example a cron or CLI script. Required when the session holds no user ID.
+     *
      * @throws \LogicException If the user does not have administrative privileges.
-     * @throws \InvalidArgumentException If the userId is invalid.
+     * @throws \InvalidArgumentException If the $userId is invalid, or if neither a user ID in the session nor an $initiator value is available.
+     *
      * @throws \RuntimeException If an unexpected error occurs during the cleanup process.
      * @return bool Returns true if any token was deleted or false if no tokens were found.
      * @see CSRF::allTokensCleanUp()
      * @uses TokenRepository::delete()
      */
-    public function cleanUpAll(?int $userId = null): bool
+    public function cleanUpAll(?int $userId = null, ?string $initiator = null): bool
     {
-        $this->getLogger()->logCleanup("Cleanup started by user with ID: " . $_SESSION[$this->config->userIdSessionKey] . ".");
-
         // Checks if the user has administrative privileges. Access is denied for non-admin users.
-        if (!isset($_SESSION[$this->config->roleName]) || $_SESSION[$this->config->roleName] != $this->config->roleValue) {
+        if (!isset($_SESSION[$this->config->roleName]) || !$this->isUserAdmin()) {
             header('HTTP/1.1 403 Forbidden');
             $this->getLogger()->logCleanup("cleanUpAll metod error: Unauthorized access attempt.");
             throw new \LogicException("You do not have the required permissions.");
         }
+
+        // Determines who started the cleanup and logs the action
+        $startedBy = $initiator ?? $_SESSION[$this->config->userIdSessionKey] ?? null;
+        if ($startedBy === null) {
+            throw new \InvalidArgumentException("Cleanup requires a user ID in the session or an \$initiator value.");
+        }
+        $this->getLogger()->logCleanup("Cleanup started by: " . $startedBy . ".");
 
         // Conditions used for filtering tokens for cleanup
         $arrayConditions = [];
@@ -101,10 +109,13 @@ class TokenCleaner
             throw new \InvalidArgumentException("Invalid action. Allowed values are 'delete' or 'update'.");
         }
 
+        // Deletes the user's tokens
         if ($action === 'delete') {
-            return $this->repository->delete('user_id', $this->getUserIdFromSession());
+            $this->repository->delete('user_id', $this->getUserIdFromSession());
+            return true;
         }
 
+        // Updates the user's tokens
         if ($action === 'update') {
             if ($this->config->saveCsrfStatus !== true) {
                 throw new \LogicException("Saving status is not allowed! Read installation for enabling this feature");

@@ -310,12 +310,18 @@ $csrf->allTokensCleanUp();             // Cleaning all expired tokens
 $csrf->allTokensCleanUp(userId: 123);  // Cleaning expired tokens for a specific user
 ```
 
+The cleanup writes to `token_cleanup.log` who started it, taken from the user ID in the session. When it runs outside a logged-in session, from a cron job or a CLI script, pass the `initiator` parameter instead - it identifies the caller in the log:
+
+```php
+$csrf->allTokensCleanUp(initiator: 'cron');               // All expired tokens, started by a script
+$csrf->allTokensCleanUp(userId: 123, initiator: 'cron');  // Expired tokens of one user, started by a script
+```
+
+If neither a user ID in the session nor `initiator` is available, the method throws an `InvalidArgumentException`.
+
 The `allTokensCleanUp` method is restricted to users with administrator privileges - see [Admin Session Setup](#admin-session-setup) for how to configure and set the required session role.
 
-If the validation fails, the method:
-
-1. Logs an error indicating unauthorized access.
-2. Returns a message to the user indicating insufficient permissions.
+If the caller is not an administrator, the method logs the unauthorized attempt and throws a `LogicException`.
 
 ## Configuration
 

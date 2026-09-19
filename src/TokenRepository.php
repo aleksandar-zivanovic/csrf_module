@@ -96,7 +96,7 @@ class TokenRepository
             $allowedColumns = ['id', 'token', 'timestamp', 'user_id', 'status'];
             $allowedOperators = ["=", "<=", ">=", "<", ">"];
             $whereClause = [];
-            foreach ($conditions as $condition) {
+            foreach ($conditions as $index => $condition) {
                 // Checks if the condition is a multidimensional array
                 if (!is_array($condition)) {
                     throw new \InvalidArgumentException("Conditions must be a multidimensional array — you provided a single-level array.");
@@ -122,7 +122,7 @@ class TokenRepository
                 }
 
                 // Generates where clause
-                $whereClause[] = "{$condition['column']} {$condition['operator']} :{$condition['column']}";
+                $whereClause[] = "{$condition['column']} {$condition['operator']} :" . $condition['column'] . "_" . $index;
             }
 
             $query .= " WHERE " . implode(" AND ", $whereClause);
@@ -137,9 +137,9 @@ class TokenRepository
 
             // Binds values
             if ($conditions !== null) {
-                foreach ($conditions as $condition) {
+                foreach ($conditions as $index => $condition) {
                     $PDOBind = in_array($condition['column'], ['token', 'status']) ? \PDO::PARAM_STR : \PDO::PARAM_INT;
-                    $stmt->bindValue(":{$condition['column']}", $condition['value'], $PDOBind);
+                    $stmt->bindValue(":{$condition['column']}_$index", $condition['value'], $PDOBind);
                 }
             }
 

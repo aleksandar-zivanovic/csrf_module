@@ -20,6 +20,14 @@
       "CSRFModule\\": "src/"
     }
   },
+  "autoload-dev": {
+    "psr-4": {
+      "CSRFModule\\Tests\\": "tests/"
+    }
+  },
   "minimum-stability": "stable",
-  "prefer-stable": true
+  "prefer-stable": true,
+  "require-dev": {
+    "phpunit/phpunit": "^11"
+  }
 }

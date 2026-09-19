@@ -151,16 +151,17 @@ class CSRF
      * Deletes time-outed CSRF tokens based on timestamp or timestamp and user ID. Only users with administrative privileges can perform this action.
      * 
      * @param int|null $userId If provided, tokens belonging to the specified user will be processed.
-     * 
+     * @param string|null $initiator Identifies the caller in the log when the cleanup is not started by a logged-in user, for example a cron or CLI script. Required when the session holds no user ID.
+     *
      * @throws \LogicException If the user does not have administrative privileges.
-     * @throws \InvalidArgumentException If the userId is invalid.
+     * @throws \InvalidArgumentException If the $userId is invalid, or if neither a user ID in the session nor an $initiator value is available.
      * @throws \RuntimeException If an unexpected error occurs during the cleanup process.
      * @return bool Returns true if any token was processed (deleted or updated), false if no tokens were found.
      * @uses TokenCleaner::cleanUpAll()
      */
-    public function allTokensCleanUp(?int $userId = null): bool
+    public function allTokensCleanUp(?int $userId = null, ?string $initiator = null): bool
     {
-        return $this->cleaner->cleanUpAll($userId);
+        return $this->cleaner->cleanUpAll($userId, $initiator);
     }
 
     /**

@@ -1,4 +1,5 @@
 config/csrf_config.php
 logs/**
 CLAUDE.md
-manual_tests/
+vendor/
+.phpunit.cache/
