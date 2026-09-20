@@ -6,6 +6,8 @@ This module provides functionality to generate and validate CSRF tokens. It ensu
 
 **Current Version**: 3.0.0 - see [CHANGELOG.md](CHANGELOG.md) for release history.
 
+**Security notice**: every version before 3.0.0 accepted any request as valid, because the token submitted with the form was never compared with the stored one. Those versions must not be used.
+
 ## Features
 
 - Token generation and validation.
